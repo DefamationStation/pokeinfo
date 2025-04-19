@@ -1,12 +1,39 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import StatsTab from './tabs/StatsTab';
 import DetailsTab from './tabs/DetailsTab';
 import MovesTab from './tabs/MovesTab';
 
 export default function PokemonModal({ details, loading, activeTab, onTabChange, onClose }) {
+  const modalRef = useRef(null);
+
+  // Close on ESC key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  // Close on outside click
+  const handleOverlayClick = (e) => {
+    if (modalRef.current && !modalRef.current.contains(e.target)) {
+      onClose();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-      <div className="bg-white rounded-lg w-11/12 md:w-3/4 lg:w-1/2 max-h-full overflow-y-auto p-4 relative">
+    <div
+      className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+      onMouseDown={handleOverlayClick}
+    >
+      <div
+        ref={modalRef}
+        className="bg-white rounded-lg w-full max-w-xl h-[48rem] overflow-y-auto p-4 relative"
+        onMouseDown={e => e.stopPropagation()}
+      >
         <button
           onClick={onClose}
           className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-2xl"
