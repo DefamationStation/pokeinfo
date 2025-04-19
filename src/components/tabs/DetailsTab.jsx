@@ -16,7 +16,7 @@ export default function DetailsTab({ details }) {
         <p>{details.base_experience}</p>
       </div>
       <div className="bg-gray-100 p-4 rounded">
-        <h3 className="text-sm text-gray-500">Order</h3>
+        <h3 className="text-sm text-gray-500">Pokedex #</h3>
         <p>{details.order}</p>
       </div>
       <div className="col-span-full">
