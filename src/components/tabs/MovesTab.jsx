@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, memo } from 'react';
+import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
 import typeColors from '../../constants/typeColors';
 import usePokemonMoves from '../../hooks/usePokemonMoves';
 
@@ -65,6 +65,20 @@ const TableHeader = memo(({ sortConfig, handleSort, getSortIcon }) => (
 export default function MovesTab({ moves, pokemonName, pokemonImage }) {
   const { moveDetails, loading, fetchProgress } = usePokemonMoves(pokemonName, moves);
   const [sortConfig, setSortConfig] = useState({ key: 'level', direction: 'ascending' });
+  const [showLoading, setShowLoading] = useState(false);
+  
+  // Don't show loading indicator immediately to avoid flicker if data is cached
+  useEffect(() => {
+    // Only show loading indicator if loading takes more than 300ms
+    if (loading) {
+      const timer = setTimeout(() => {
+        setShowLoading(true);
+      }, 300);
+      return () => clearTimeout(timer);
+    } else {
+      setShowLoading(false);
+    }
+  }, [loading]);
   
   // Cache some frequently used functions
   const formatName = useCallback((name) => {
@@ -243,7 +257,9 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
     });
   }, [preparedMoves, sortConfig]);
   
-  if (loading && Object.keys(moveDetails).length === 0) {
+  const shouldShowLoading = loading && (showLoading || Object.keys(moveDetails).length === 0);
+  
+  if (shouldShowLoading && Object.keys(moveDetails).length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8">
         <div className="border-4 border-gray-200 border-t-red-500 rounded-full w-10 h-10 animate-spin mb-4"></div>
@@ -254,10 +270,9 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
   
   return (
     <div className="flex flex-col h-full">
-
       
       {/* Progress indicator for data loading */}
-      {loading && (
+      {shouldShowLoading && fetchProgress < 100 && (
         <div className="p-2 bg-blue-50 border-b border-blue-100">
           <div className="w-full bg-gray-200 rounded-full h-2.5">
             <div 

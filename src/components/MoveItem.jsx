@@ -1,5 +1,7 @@
 import React, { useState, useEffect, memo } from 'react';
+import typeColors from '../constants/typeColors';
 
+// Shared cache for move details - persists during the session
 const moveCache = {};
 
 function MoveItem({ moveInfo }) {
@@ -34,10 +36,14 @@ function MoveItem({ moveInfo }) {
     }
   };
 
-  // Fetch move details immediately on component mount
+  // Fetch move details with better caching
   useEffect(() => {
-    if (!moveDetails) {
+    // Only auto-fetch on mount if not already in cache
+    if (!moveDetails && !moveCache[moveName]) {
       fetchMoveDetails(false); // don't show loading indicator on initial load
+    } else if (moveCache[moveName] && !moveDetails) {
+      // If we have it in memory cache but not in component state
+      setMoveDetails(moveCache[moveName]);
     }
   }, []);
 
@@ -46,7 +52,7 @@ function MoveItem({ moveInfo }) {
       setLoading(true);
     }
     
-    // Check cache first
+    // Check in-memory cache first
     if (moveCache[moveName]) {
       setMoveDetails(moveCache[moveName]);
       setLoading(false);
@@ -57,23 +63,29 @@ function MoveItem({ moveInfo }) {
     try {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && typeof parsed === 'object') {
-          moveCache[moveName] = parsed;
-          setMoveDetails(parsed);
-          setLoading(false);
-          return;
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed && typeof parsed === 'object') {
+            // Store in memory cache for future use
+            moveCache[moveName] = parsed;
+            setMoveDetails(parsed);
+            setLoading(false);
+            return;
+          }
+        } catch (parseError) {
+          console.warn(`Error parsing stored move data for ${moveName}:`, parseError);
+          // Invalid data in localStorage, remove it
+          localStorage.removeItem(storageKey);
         }
       }
     } catch (e) {
-      console.error("Error parsing stored move data:", e);
-      // Continue to fetch from API
+      console.error("Error accessing localStorage:", e);
     }
     
     // Fetch from API if not in cache or localStorage
     fetch(moveInfo.move.url)
       .then(res => {
-        if (!res.ok) throw new Error(`Failed to fetch move data for ${moveName}`);
+        if (!res.ok) throw new Error(`Failed to fetch move data for ${moveName}: ${res.status}`);
         return res.json();
       })
       .then(data => {
@@ -82,8 +94,10 @@ function MoveItem({ moveInfo }) {
           throw new Error(`Invalid data received for ${moveName}`);
         }
         
+        // Store in memory cache
         moveCache[moveName] = data;
         
+        // Try to save to localStorage
         try {
           localStorage.setItem(storageKey, JSON.stringify(data));
         } catch (e) {
@@ -101,29 +115,7 @@ function MoveItem({ moveInfo }) {
 
   // Function to determine badge color based on move type
   const getTypeColor = (type) => {
-    const typeColors = {
-      normal: 'bg-gray-400 text-white',
-      fire: 'bg-red-600 text-white',
-      water: 'bg-blue-500 text-white',
-      electric: 'bg-yellow-500 text-white',
-      grass: 'bg-green-500 text-white',
-      ice: 'bg-blue-300 text-white',
-      fighting: 'bg-orange-600 text-white',
-      poison: 'bg-purple-600 text-white',
-      ground: 'bg-yellow-600 text-white',
-      flying: 'bg-indigo-400 text-white',
-      psychic: 'bg-pink-500 text-white',
-      bug: 'bg-green-600 text-white',
-      rock: 'bg-yellow-700 text-white',
-      ghost: 'bg-indigo-700 text-white',
-      dragon: 'bg-purple-700 text-white',
-      dark: 'bg-gray-800 text-white',
-      steel: 'bg-gray-500 text-white',
-      fairy: 'bg-pink-400 text-white',
-      default: 'bg-gray-400 text-white'
-    };
-    
-    return typeColors[type] || typeColors.default;
+    return typeColors[type] || typeColors.normal;
   };
 
   // Get the learn method badge
