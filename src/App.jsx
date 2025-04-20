@@ -3,18 +3,23 @@ import usePokemonList from './hooks/usePokemonList';
 import usePokemonDetails from './hooks/usePokemonDetails';
 import SearchBar from './components/SearchBar';
 import PokemonList from './components/PokemonList';
+import PokemonTable from './components/PokemonTable';
 import PokemonModal from './components/PokemonModal';
+import ViewToggle from './components/ViewToggle';
 
 // Memo-ized components for better performance
 const MemoizedSearchBar = memo(SearchBar);
 const MemoizedPokemonList = memo(PokemonList);
+const MemoizedPokemonTable = memo(PokemonTable);
 const MemoizedPokemonModal = memo(PokemonModal);
+const MemoizedViewToggle = memo(ViewToggle);
 
 export default function App() {
   const { filteredList, loadingList, search, setSearch } = usePokemonList();
   const { details, loadingDetails, selectPokemon, clearSelection } = usePokemonDetails();
   const [activeTab, setActiveTab] = useState('stats');
   const [clearingCache, setClearingCache] = useState(false);
+  const [currentView, setCurrentView] = useState('grid'); // 'grid' or 'table'
   const clearTimeoutRef = useRef(null);
 
   // Enhanced cache clearing handler with feedback
@@ -100,6 +105,10 @@ export default function App() {
     setActiveTab(tab);
   }, []);
 
+  const handleViewChange = useCallback((view) => {
+    setCurrentView(view);
+  }, []);
+
   return (
     <div className="max-w-6xl mx-auto p-4 relative">
       {/* Clear Cache Button */}
@@ -127,9 +136,12 @@ export default function App() {
       </button>
       
       <h1 className="text-4xl font-bold text-center mb-2 text-red-600">Pokédex</h1>
-      <p className="text-center text-gray-600 mb-6">Search for any Pokémon to view detailed information</p>
+      <p className="text-center text-gray-600 mb-4">Search for any Pokémon to view detailed information</p>
 
       <MemoizedSearchBar search={search} onSearchChange={handleSearchChange} />
+
+      {/* View Toggle */}
+      <MemoizedViewToggle currentView={currentView} onViewChange={handleViewChange} />
 
       {loadingList ? (
         <div className="flex justify-center mt-8">
@@ -140,11 +152,21 @@ export default function App() {
           <p className="text-lg text-gray-600">No Pokémon found matching your search.</p>
         </div>
       ) : (
-        <MemoizedPokemonList 
-          list={filteredList} 
-          loading={loadingList} 
-          onSelect={selectPokemon} 
-        />
+        <>
+          {currentView === 'grid' ? (
+            <MemoizedPokemonList 
+              list={filteredList} 
+              loading={loadingList} 
+              onSelect={selectPokemon} 
+            />
+          ) : (
+            <MemoizedPokemonTable 
+              list={filteredList} 
+              loading={loadingList} 
+              onSelect={selectPokemon} 
+            />
+          )}
+        </>
       )}
 
       {details && (
