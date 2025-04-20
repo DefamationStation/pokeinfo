@@ -186,26 +186,48 @@ const PokemonTable = ({ list, loading, onSelect, visibleCount, setVisibleCount, 
     };
   }, [handleScroll]);
 
-  // Automatic slow loader for table rows
+  // Show all rows immediately (no slow loader)
   useEffect(() => {
-    if (visibleCount >= sortedList.length) return;
-    const interval = setInterval(() => {
-      setVisibleCount(prev => {
-        if (prev < sortedList.length) {
-          return Math.min(prev + 10, sortedList.length);
-        }
-        return prev;
-      });
-    }, 600);
-    return () => clearInterval(interval);
-  }, [visibleCount, sortedList.length, setVisibleCount]);
+    if (visibleCount < sortedList.length) {
+      setVisibleCount(sortedList.length);
+    }
+  }, [sortedList.length, setVisibleCount]);
 
   
-  // Fetch details when visible pokemons change
+  // On visiblePokemons change, hydrate detailsCache for all visiblePokemons from localStorage synchronously
+  // Used to force re-render after hydration
+  const [hydrationKey, setHydrationKey] = useState(0);
+
   useEffect(() => {
-    fetchPokemonDetails(visiblePokemons);
-    // No abort logic here since fetchPokemonDetails is now hoisted
-  }, [visiblePokemons, fetchPokemonDetails]);
+    if (!visiblePokemons || visiblePokemons.length === 0) return;
+    let hydratedAny = false;
+    const uncached = [];
+    visiblePokemons.forEach(pokemon => {
+      if (!detailsCache.current[pokemon.name]) {
+        // Try to hydrate from localStorage
+        const storageKey = `pokemonDetails_${pokemon.name}`;
+        try {
+          const cachedData = localStorage.getItem(storageKey);
+          if (cachedData) {
+            const data = JSON.parse(cachedData);
+            if (data) {
+              detailsCache.current[pokemon.name] = data;
+              hydratedAny = true;
+              return;
+            }
+          }
+        } catch (e) {
+          // Ignore
+        }
+        uncached.push(pokemon);
+      }
+    });
+    if (hydratedAny) setHydrationKey(k => k + 1);
+    if (uncached.length > 0) {
+      fetchPokemonDetails(uncached);
+    }
+    // If all are cached, no fetch needed, table renders instantly
+  }, [visiblePokemons, fetchPokemonDetails, detailsCache]);
 
   if (loading) {
     return <p>Loading Pokémon...</p>;
@@ -293,7 +315,7 @@ const PokemonTable = ({ list, loading, onSelect, visibleCount, setVisibleCount, 
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody key={hydrationKey} className="bg-white divide-y divide-gray-200">
             {visiblePokemons.map((pokemon) => {
               const id = getPokemonId(pokemon.url);
               const details = detailsCache.current[pokemon.name];
@@ -308,7 +330,15 @@ const PokemonTable = ({ list, loading, onSelect, visibleCount, setVisibleCount, 
                     #{id}
                   </td>
                   <td className="px-1 py-1 whitespace-nowrap">
-                    <img src={spriteUrl} alt={pokemon.name} className="w-6 h-6" />
+                    <img
+                      src={(() => {
+                        const id = pokemon.url ? pokemon.url.split('/').filter(Boolean).pop() : null;
+                        return id ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png` : 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png';
+                      })()}
+                      alt={pokemon.name || 'Pokémon'}
+                      className="w-6 h-6"
+                      onError={e => { e.target.onerror = null; e.target.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png'; }}
+                    />
                   </td>
                   <td className="px-2 py-1 whitespace-nowrap text-xs font-medium text-gray-900 capitalize">
                     {pokemon.name}

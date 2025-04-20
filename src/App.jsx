@@ -6,6 +6,7 @@ import PokemonList from './components/PokemonList';
 import PokemonTable from './components/PokemonTable';
 import PokemonModal from './components/PokemonModal';
 import ViewToggle from './components/ViewToggle';
+import CacheProgressBar from './components/CacheProgressBar';
 
 // Memo-ized components for better performance
 const MemoizedSearchBar = memo(SearchBar);
@@ -36,6 +37,81 @@ export default function App() {
     }
     detailsCache.current = hydrated;
   }, []);
+
+  // Background cache warmer: progressively fetch and cache all missing pokemon details
+  // Only call usePokemonList once at the top
+  const { pokemonList, filteredList, loadingList, search, setSearch } = usePokemonList();
+  // Cache warming state
+  const [cacheProgress, setCacheProgress] = useState({
+    isActive: false,
+    progress: 0,
+    total: 0,
+    currentTask: '',
+  });
+
+  useEffect(() => {
+    if (!pokemonList || pokemonList.length === 0) return;
+    let cancelled = false;
+    // Count how many are already cached
+    let cachedCount = 0;
+    for (const p of pokemonList) {
+      if (detailsCache.current[p.name]) cachedCount++;
+      else {
+        const storageKey = `pokemonDetails_${p.name}`;
+        try {
+          const cachedData = localStorage.getItem(storageKey);
+          if (cachedData) {
+            const data = JSON.parse(cachedData);
+            if (data) {
+              detailsCache.current[p.name] = data;
+              cachedCount++;
+            }
+          }
+        } catch {}
+      }
+    }
+    const total = pokemonList.length;
+    const percentCached = cachedCount / total;
+    // Optimize initial download: large batch, no delay if <10% cached
+    const batchSize = percentCached < 0.1 ? 50 : 10;
+    const delay = percentCached < 0.1 ? () => Promise.resolve() : ms => new Promise(res => setTimeout(res, ms));
+    setCacheProgress({
+      isActive: cachedCount < total,
+      progress: cachedCount,
+      total,
+      currentTask: percentCached < 0.1 ? 'Initial Download (Pokémon Details)' : 'Warming Pokémon Details Cache',
+    });
+    async function warmCache() {
+      // Find uncached
+      const uncached = pokemonList.filter(p => !detailsCache.current[p.name]);
+      for (let i = 0; i < uncached.length && !cancelled; i += batchSize) {
+        const batch = uncached.slice(i, i + batchSize);
+        await Promise.all(batch.map(async (pokemon) => {
+          try {
+            const response = await fetch(pokemon.url);
+            if (!response.ok) throw new Error();
+            const data = await response.json();
+            detailsCache.current[pokemon.name] = data;
+            try {
+              localStorage.setItem(`pokemonDetails_${pokemon.name}`, JSON.stringify(data));
+            } catch {}
+            setCacheProgress(prev => ({
+              ...prev,
+              progress: prev.progress + 1,
+            }));
+          } catch {}
+        }));
+        // Wait between batches
+        if (i + batchSize < uncached.length) await delay(500);
+      }
+      setCacheProgress(prev => ({ ...prev, isActive: false }));
+    }
+    if (cachedCount < total) {
+      setCacheProgress(prev => ({ ...prev, isActive: true }));
+      warmCache();
+    }
+    return () => { cancelled = true; };
+  }, [pokemonList]);
   const [visibleCount, setVisibleCount] = useState(30);
   const [loadingTableDetails, setLoadingTableDetails] = useState(false);
 
@@ -91,7 +167,7 @@ export default function App() {
     }
     setLoadingTableDetails(false);
   }, []);
-  const { filteredList, loadingList, search, setSearch } = usePokemonList();
+
   const { details, loadingDetails, selectPokemon, clearSelection } = usePokemonDetails();
   const [activeTab, setActiveTab] = useState('stats');
   const [clearingCache, setClearingCache] = useState(false);
@@ -185,9 +261,56 @@ export default function App() {
     setCurrentView(view);
   }, []);
 
+  // Only show spinner if nothing loaded yet
+  if (loadingList && (!filteredList || filteredList.length === 0)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+        <CacheProgressBar
+          isActive={cacheProgress.isActive}
+          progress={cacheProgress.progress}
+          total={cacheProgress.total}
+          currentTask={cacheProgress.currentTask}
+        />
+        <div className="flex flex-col items-center mt-16">
+          <svg className="animate-spin h-12 w-12 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p className="text-xl text-blue-700">Loading Pokémon List...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state: no Pokémon loaded after fetch
+  if (!pokemonList || pokemonList.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+        <CacheProgressBar
+          isActive={cacheProgress.isActive}
+          progress={cacheProgress.progress}
+          total={cacheProgress.total}
+          currentTask={cacheProgress.currentTask}
+        />
+        <div className="flex flex-col items-center mt-16">
+          <svg className="h-12 w-12 text-red-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p className="text-xl text-red-700">Failed to load Pokémon list. Check your connection and refresh.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-6xl mx-auto p-4 relative">
-      {/* Clear Cache Button */}
+    <div className="relative min-h-screen bg-gray-50">
+      <CacheProgressBar
+        isActive={cacheProgress.isActive}
+        progress={cacheProgress.progress}
+        total={cacheProgress.total}
+        currentTask={cacheProgress.currentTask}
+      />
       <button
         onClick={handleClearCache}
         disabled={clearingCache}

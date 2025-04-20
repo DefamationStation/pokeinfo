@@ -1,49 +1,30 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
-// Helper to fetch and attach types to all Pokémon in the list
-const fetchAndAttachTypes = async (list, setPokemonList, setFilteredList, setLoadingList, batchSize = 10, maxRetries = 2) => {
-  setLoadingList(true);
+// Progressive details fetcher: fetch details for each Pokémon and update state as each arrives
+const hydratePokemonDetails = async (list, setPokemonList, setFilteredList) => {
   const updatedList = [...list];
-  let i = 0;
   const delay = ms => new Promise(res => setTimeout(res, ms));
 
-  // Helper to fetch details with retries
-  const fetchDetailsWithRetry = async (url, retries = maxRetries) => {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.json();
-      } catch (e) {
-        if (attempt === retries) return null;
-        await delay(400); // Wait before retry
-      }
-    }
-    return null;
-  };
-
-  while (i < list.length) {
-    const batch = list.slice(i, i + batchSize);
-    const results = await Promise.all(batch.map(async (p) => {
-      const details = await fetchDetailsWithRetry(p.url);
+  for (let i = 0; i < list.length; i++) {
+    const p = list[i];
+    try {
+      const res = await fetch(p.url);
+      if (!res.ok) throw new Error();
+      const details = await res.json();
       let types = [];
       let artwork = null;
       if (details && details.types && Array.isArray(details.types)) {
         types = details.types;
         artwork = details.sprites?.other?.['official-artwork']?.front_default || null;
       }
-      return { ...p, types, artwork };
-    }));
-    for (let j = 0; j < results.length; j++) {
-      updatedList[i + j] = results[j];
-    }
-    i += batchSize;
-    await delay(500); // Wait between batches to avoid rate limits
+      updatedList[i] = { ...p, types, artwork };
+      setPokemonList(updatedList.slice());
+      setFilteredList(updatedList.slice());
+      localStorage.setItem('pokemonList', JSON.stringify(updatedList));
+    } catch {}
+    // Optional: add a small delay to avoid rate limits
+    if (i % 10 === 9) await delay(300);
   }
-  setPokemonList(updatedList);
-  setFilteredList(updatedList);
-  localStorage.setItem('pokemonList', JSON.stringify(updatedList));
-  setLoadingList(false);
 };
 
 // Note: Each Pokémon object may now have an 'artwork' property (string | null)
@@ -59,11 +40,9 @@ export default function usePokemonList() {
       const parsed = JSON.parse(stored);
       setPokemonList(parsed);
       setFilteredList(parsed);
-      // If types are missing, fetch them
+      setLoadingList(false); // Always allow UI to render, even if details are missing
       if (!parsed[0]?.types) {
-        fetchAndAttachTypes(parsed, setPokemonList, setFilteredList, setLoadingList);
-      } else {
-        setLoadingList(false);
+        hydratePokemonDetails(parsed, setPokemonList, setFilteredList);
       }
     } else {
       // Fetch all Pokémon in batches using API pagination
@@ -83,12 +62,22 @@ export default function usePokemonList() {
         });
         setPokemonList(cleaned);
         setFilteredList(cleaned);
-        // Fetch types and artwork for all
-        fetchAndAttachTypes(cleaned, setPokemonList, setFilteredList, setLoadingList);
+        setLoadingList(false); // UI can render now
+        // Fetch types and artwork for all (background)
+        hydratePokemonDetails(cleaned, setPokemonList, setFilteredList);
       };
       fetchAllPokemon();
     }
   }, []);
+
+  // Prevent flicker: only update filteredList when search changes
+  const originalListRef = React.useRef([]);
+  // Set the original list only once, when first loaded
+  useEffect(() => {
+    if (pokemonList.length > 0 && originalListRef.current.length === 0) {
+      originalListRef.current = pokemonList;
+    }
+  }, [pokemonList]);
 
   useEffect(() => {
     // Split search into words, treat each as a type if it matches a known type
@@ -99,7 +88,7 @@ export default function usePokemonList() {
     const typeTerms = searchTerms.filter(term => typeList.includes(term));
     const nameTerms = searchTerms.filter(term => !typeList.includes(term));
 
-    const filtered = pokemonList.filter(p => {
+    const filtered = originalListRef.current.filter(p => {
       // Name search: all terms must appear in the name
       const nameMatch = nameTerms.length === 0 || nameTerms.every(term => p.name.toLowerCase().includes(term));
       // Type search: all typeTerms must be present in the Pokémon's types
@@ -113,7 +102,7 @@ export default function usePokemonList() {
       return nameMatch && typeMatch;
     });
     setFilteredList(filtered);
-  }, [search, pokemonList]);
+  }, [search]);
 
   return { pokemonList, filteredList, loadingList, search, setSearch };
 }

@@ -1,16 +1,15 @@
 import React, { memo, useState, useEffect, useCallback } from 'react';
 
 export default memo(function PokemonCard({ pokemon, onSelect }) {
-  const id = pokemon.url.split('/').filter(Boolean).pop();
-  const defaultSprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
   const artwork = pokemon.artwork;
-  const [imgSrc, setImgSrc] = useState(artwork || defaultSprite);
+  const [imgSrc, setImgSrc] = useState(artwork);
+  const placeholder = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png'; // Pokéball icon
   const [isClicking, setIsClicking] = useState(false);
 
   useEffect(() => {
     // Reset image source if pokemon changes
-    setImgSrc(artwork || defaultSprite);
-  }, [artwork, defaultSprite]);
+    setImgSrc(artwork);
+  }, [artwork]);
 
   // Debounced click handler to prevent multiple rapid clicks
   const handleClick = useCallback((e) => {
@@ -34,13 +33,13 @@ export default memo(function PokemonCard({ pokemon, onSelect }) {
       onClick={handleClick}
     >
       <img
-        src={imgSrc}
-        alt={pokemon.name}
+        src={imgSrc || placeholder}
+        alt={pokemon.name || 'Pokémon'}
         className="mx-auto mb-2"
         onError={() => {
-          // If the default sprite fails, try artwork if not already set
-          if (imgSrc !== artwork && artwork) {
-            setImgSrc(artwork);
+          // If both default sprite and artwork fail, show Pokéball placeholder
+          if (imgSrc !== placeholder) {
+            setImgSrc(placeholder);
           }
         }}
       />
