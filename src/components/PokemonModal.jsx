@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import StatsTab from './tabs/StatsTab';
 import DetailsTab from './tabs/DetailsTab';
 import MovesTab from './tabs/MovesTab';
+import TeraTab from './tabs/TeraTab';
 
 export default function PokemonModal({ details, loading, activeTab, onTabChange, onClose }) {
   const modalRef = useRef(null);
@@ -64,38 +65,45 @@ export default function PokemonModal({ details, loading, activeTab, onTabChange,
               <h2 className="text-2xl capitalize mt-2">{details.name}</h2>
             </div>
 
-            <div className="flex justify-center space-x-4 mb-4">
-  <button
-    onClick={() => onTabChange('stats')}
-    className={`px-4 py-2 ${activeTab === 'stats' ? 'border-b-2 border-blue-500' : ''}`}
-  >
-    Stats
-  </button>
-  <button
-    onClick={() => onTabChange('moves')}
-    className={`px-4 py-2 ${activeTab === 'moves' ? 'border-b-2 border-blue-500' : ''}`}
-  >
-    Moves
-  </button>
-  <button
-    onClick={() => onTabChange('details')}
-    className={`px-4 py-2 ${activeTab === 'details' ? 'border-b-2 border-blue-500' : ''}`}
-  >
-    Details
-  </button>
-</div>
+            <div className="flex justify-center space-x-2 mb-4 overflow-x-auto px-2">
+              <button
+                onClick={() => onTabChange('stats')}
+                className={`px-3 py-2 text-sm ${activeTab === 'stats' ? 'border-b-2 border-blue-500 font-medium' : ''}`}
+              >
+                Stats
+              </button>
+              <button
+                onClick={() => onTabChange('tera')}
+                className={`px-3 py-2 text-sm ${activeTab === 'tera' ? 'border-b-2 border-blue-500 font-medium' : ''}`}
+              >
+                Tera
+              </button>
+              <button
+                onClick={() => onTabChange('moves')}
+                className={`px-3 py-2 text-sm ${activeTab === 'moves' ? 'border-b-2 border-blue-500 font-medium' : ''}`}
+              >
+                Moves
+              </button>
+              <button
+                onClick={() => onTabChange('details')}
+                className={`px-3 py-2 text-sm ${activeTab === 'details' ? 'border-b-2 border-blue-500 font-medium' : ''}`}
+              >
+                Details
+              </button>
+            </div>
 
             <div className="p-2 h-full overflow-y-auto">
-  {activeTab === 'stats' && <StatsTab stats={details.stats} types={details.types} />}
-  {activeTab === 'moves' && (
-    <MovesTab
-      moves={details.moves}
-      pokemonName={details.name}
-      pokemonImage={details.sprites.other['official-artwork'].front_default}
-    />
-  )}
-  {activeTab === 'details' && <DetailsTab details={details} />}
-</div>
+              {activeTab === 'stats' && <StatsTab stats={details.stats} types={details.types} />}
+              {activeTab === 'tera' && <TeraTab types={details.types} />}
+              {activeTab === 'moves' && (
+                <MovesTab
+                  moves={details.moves}
+                  pokemonName={details.name}
+                  pokemonImage={details.sprites.other['official-artwork'].front_default}
+                />
+              )}
+              {activeTab === 'details' && <DetailsTab details={details} />}
+            </div>
           </>
         )}
       </div>
