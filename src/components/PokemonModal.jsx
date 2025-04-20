@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import StatsTab from './tabs/StatsTab';
 import DetailsTab from './tabs/DetailsTab';
 import MovesTab from './tabs/MovesTab';
@@ -17,22 +17,33 @@ export default function PokemonModal({ details, loading, activeTab, onTabChange,
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  // Close on outside click
-  const handleOverlayClick = (e) => {
+  // Handle overlay click with useCallback for better performance
+  const handleOverlayClick = useCallback((e) => {
+    // Only handle clicks (not mousedown) to avoid interference with other events
     if (modalRef.current && !modalRef.current.contains(e.target)) {
       onClose();
     }
-  };
+  }, [onClose]);
+
+  // Focus the modal when it opens
+  useEffect(() => {
+    if (modalRef.current) {
+      modalRef.current.focus();
+    }
+  }, []);
 
   return (
     <div
       className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
-      onMouseDown={handleOverlayClick}
+      onClick={handleOverlayClick} // Changed from onMouseDown to onClick
+      aria-modal="true"
+      role="dialog"
     >
       <div
         ref={modalRef}
         className="bg-white rounded-lg w-full max-w-xl h-[48rem] overflow-y-auto p-4 relative"
-        onMouseDown={e => e.stopPropagation()}
+        onClick={e => e.stopPropagation()} // Changed from onMouseDown to onClick
+        tabIndex="-1" // Make it focusable
       >
         <button
           onClick={onClose}

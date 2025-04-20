@@ -1,19 +1,162 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import typeColors from '../../constants/typeColors';
+
+// Memo-ized move row component for better performance
+const MoveRow = memo(({ move, index, getTypeClass, getCategoryClass, getMethodDisplay, formatName }) => {
+  return (
+    <tr 
+      className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+    >
+      <td className="py-2 px-3">
+        {getMethodDisplay(move.method, move.level)}
+      </td>
+      <td className="py-2 px-3">{move.formattedName}</td>
+      <td className="py-2 px-3">
+        {move.type && (
+          <span className={`px-2 py-1 text-xs rounded-full ${getTypeClass(move.type)}`}>
+            {formatName(move.type)}
+          </span>
+        )}
+      </td>
+      <td className="py-2 px-3">
+        {move.category && (
+          <span className={`px-2 py-1 text-xs rounded-full ${getCategoryClass(move.category)}`}>
+            {formatName(move.category)}
+          </span>
+        )}
+      </td>
+      <td className="py-2 px-3 text-right">{move.power}</td>
+      <td className="py-2 px-3 text-right">{move.accuracy}</td>
+      <td className="py-2 px-3 text-right">{move.pp}</td>
+    </tr>
+  );
+});
+
+// Table header component
+const TableHeader = memo(({ sortConfig, handleSort, getSortIcon }) => (
+  <thead className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
+    <tr className="bg-gray-100 text-gray-600 text-left text-sm">
+      <th className="py-2 px-3 cursor-pointer font-medium" onClick={() => handleSort('level')}>
+        Level {getSortIcon('level')}
+      </th>
+      <th className="py-2 px-3 cursor-pointer font-medium" onClick={() => handleSort('name')}>
+        Move {getSortIcon('name')}
+      </th>
+      <th className="py-2 px-3 cursor-pointer font-medium" onClick={() => handleSort('type')}>
+        Type {getSortIcon('type')}
+      </th>
+      <th className="py-2 px-3 cursor-pointer font-medium" onClick={() => handleSort('category')}>
+        Cat. {getSortIcon('category')}
+      </th>
+      <th className="py-2 px-3 cursor-pointer text-right font-medium" onClick={() => handleSort('power')}>
+        Pwr. {getSortIcon('power')}
+      </th>
+      <th className="py-2 px-3 cursor-pointer text-right font-medium" onClick={() => handleSort('accuracy')}>
+        Acc. {getSortIcon('accuracy')}
+      </th>
+      <th className="py-2 px-3 cursor-pointer text-right font-medium" onClick={() => handleSort('pp')}>
+        PP {getSortIcon('pp')}
+      </th>
+    </tr>
+  </thead>
+));
 
 export default function MovesTab({ moves, pokemonName, pokemonImage }) {
   const [moveDetails, setMoveDetails] = useState({});
   const [loading, setLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: 'level', direction: 'ascending' });
+  const [fetchProgress, setFetchProgress] = useState(0);
   
+  // Cache some frequently used functions
+  const formatName = useCallback((name) => {
+    return name
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }, []);
+  
+  // Get earliest level learned (memoized helper)
+  const getLearnLevel = useCallback((moveInfo) => {
+    const levels = moveInfo.version_group_details
+      .filter(d => d.level_learned_at > 0)
+      .map(d => d.level_learned_at);
+    
+    return levels.length > 0 ? Math.min(...levels) : 0;
+  }, []);
+  
+  // Get learn method (memoized helper)
+  const getLearnMethod = useCallback((moveInfo) => {
+    const details = moveInfo.version_group_details;
+    return details.length > 0 
+      ? details[details.length - 1].move_learn_method.name 
+      : 'level-up';
+  }, []);
+  
+  // Method display (memoized helper)
+  const getMethodDisplay = useCallback((method, level) => {
+    if (method === 'level-up' && level > 0) {
+      return level;
+    } 
+    if (method === 'egg') {
+      return 'Egg';
+    }
+    if (method === 'machine') {
+      return 'TM/HM';
+    }
+    if (method === 'tutor') {
+      return 'Tutor';
+    }
+    return '—';
+  }, []);
+  
+  // Type color helper (memoized)
+  const getTypeClass = useCallback((type) => {
+    return typeColors[type] || 'bg-gray-400 text-white';
+  }, []);
+  
+  // Category class helper (memoized)
+  const getCategoryClass = useCallback((category) => {
+    if (category === 'physical') {
+      return 'bg-orange-600 text-white';
+    } else if (category === 'special') {
+      return 'bg-blue-500 text-white';
+    } else if (category === 'status') {
+      return 'bg-gray-400 text-white';
+    }
+    return '';
+  }, []);
+  
+  // Sort icon helper (memoized)
+  const getSortIcon = useCallback((key) => {
+    if (sortConfig.key !== key) {
+      return '↕️';
+    }
+    return sortConfig.direction === 'ascending' ? '↑' : '↓';
+  }, [sortConfig]);
+  
+  // Handle sort
+  const handleSort = useCallback((key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  }, [sortConfig]);
+  
+  // Optimize move data fetching using batches and AbortController
   useEffect(() => {
     const fetchAllMoves = async () => {
       setLoading(true);
-      const moveDetailsObj = {};
+      setFetchProgress(0);
       
-      // First check localStorage and create a list of moves to fetch
+      // Create an abort controller to cancel requests if component unmounts
+      const controller = new AbortController();
+      const signal = controller.signal;
+      
+      const moveDetailsObj = {};
       const movesToFetch = [];
       
+      // First check localStorage and memory cache for existing data
       moves.forEach(moveInfo => {
         const moveName = moveInfo.move.name;
         const storageKey = 'move_' + moveName;
@@ -35,57 +178,87 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
         }
       });
       
-      // Fetch missing move details
-      const fetchPromises = movesToFetch.map(moveInfo => {
-        return fetch(moveInfo.move.url)
-          .then(res => res.json())
-          .then(data => {
-            moveDetailsObj[moveInfo.move.name] = data;
-            localStorage.setItem('move_' + moveInfo.move.name, JSON.stringify(data));
-            return data;
-          })
-          .catch(err => {
-            console.error(`Failed to fetch details for ${moveInfo.move.name}:`, err);
-            return null;
-          });
-      });
+      // Update with cached data immediately
+      if (Object.keys(moveDetailsObj).length > 0) {
+        setMoveDetails(current => ({ ...current, ...moveDetailsObj }));
+      }
       
-      await Promise.all(fetchPromises);
-      setMoveDetails(moveDetailsObj);
+      // If no moves to fetch, we're done
+      if (movesToFetch.length === 0) {
+        setLoading(false);
+        return;
+      }
+      
+      // Show progress based on how many moves already cached
+      setFetchProgress(
+        (moves.length - movesToFetch.length) / moves.length * 100
+      );
+      
+      // Fetch missing move details in batches
+      const BATCH_SIZE = 5; // Smaller batches for better responsiveness
+      const BATCH_DELAY = 300; // ms between batches to avoid rate limiting
+      
+      for (let i = 0; i < movesToFetch.length; i += BATCH_SIZE) {
+        if (signal.aborted) break;
+        
+        const batch = movesToFetch.slice(i, i + BATCH_SIZE);
+        
+        try {
+          await Promise.all(batch.map(async (moveInfo) => {
+            try {
+              const res = await fetch(moveInfo.move.url, { signal });
+              if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+              
+              const data = await res.json();
+              moveDetailsObj[moveInfo.move.name] = data;
+              
+              // Update localStorage (with error handling)
+              try {
+                localStorage.setItem('move_' + moveInfo.move.name, JSON.stringify(data));
+              } catch (e) {
+                console.warn('Failed to save move to localStorage:', e);
+              }
+              
+              // Update state incrementally to show progress
+              setMoveDetails(current => ({ ...current, [moveInfo.move.name]: data }));
+              
+              // Update progress
+              setFetchProgress(prev => {
+                const newProgress = prev + (1 / movesToFetch.length * 100);
+                return Math.min(newProgress, 99); // Cap at 99% until fully complete
+              });
+              
+            } catch (error) {
+              if (error.name === 'AbortError') throw error;
+              console.error(`Failed to fetch details for ${moveInfo.move.name}:`, error);
+            }
+          }));
+          
+          // Add delay between batches
+          if (i + BATCH_SIZE < movesToFetch.length) {
+            await new Promise(r => setTimeout(r, BATCH_DELAY));
+          }
+          
+        } catch (error) {
+          if (error.name === 'AbortError') break;
+          console.error('Batch error:', error);
+        }
+      }
+      
       setLoading(false);
+      setFetchProgress(100);
+      
+      return () => {
+        controller.abort();
+      };
     };
     
     fetchAllMoves();
   }, [moves]);
   
-  // Helper to get earliest level learned
-  const getLearnLevel = (moveInfo) => {
-    const levels = moveInfo.version_group_details
-      .filter(d => d.level_learned_at > 0)
-      .map(d => d.level_learned_at);
-    
-    return levels.length > 0 ? Math.min(...levels) : 0;
-  };
-  
-  // Helper to get the most recent learn method
-  const getLearnMethod = (moveInfo) => {
-    const details = moveInfo.version_group_details;
-    return details.length > 0 
-      ? details[details.length - 1].move_learn_method.name 
-      : 'level-up';
-  };
-  
-  // Format name for display
-  const formatName = (name) => {
-    return name
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
-  
-  // Prepare the move data
-  const prepareMovesData = () => {
-    return moves.map(moveInfo => {
+  // Prepare and sort move data (memoized for performance)
+  const preparedMoves = useMemo(() => {
+    const moveData = moves.map(moveInfo => {
       const name = moveInfo.move.name;
       const details = moveDetails[name];
       const level = getLearnLevel(moveInfo);
@@ -104,30 +277,13 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
         details
       };
     });
-  };
-  
-  // Format method display
-  const getMethodDisplay = (method, level) => {
-    if (method === 'level-up' && level > 0) {
-      return level;
-    } 
-    if (method === 'egg') {
-      return 'Egg';
-    }
-    if (method === 'machine') {
-      return 'TM/HM';
-    }
-    if (method === 'tutor') {
-      return 'Tutor';
-    }
-    return '—';
-  };
-  
-  // Sort the moves
-  const sortedMoves = () => {
-    const moveData = prepareMovesData();
     
-    return [...moveData].sort((a, b) => {
+    return moveData;
+  }, [moveDetails, moves, formatName, getLearnLevel, getLearnMethod]);
+  
+  // Sort the prepared moves (memoized)
+  const sortedMoves = useMemo(() => {
+    return [...preparedMoves].sort((a, b) => {
       // First sort by method to group similar methods together
       if (a.method !== b.method) {
         // Level-up moves first
@@ -199,46 +355,13 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
       
       return 0;
     });
-  };
+  }, [preparedMoves, sortConfig]);
   
-  // Handle column header click for sorting
-  const handleSort = (key) => {
-    let direction = 'ascending';
-    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
-    }
-    setSortConfig({ key, direction });
-  };
-  
-  // Get sort icon
-  const getSortIcon = (key) => {
-    if (sortConfig.key !== key) {
-      return '↕️';
-    }
-    return sortConfig.direction === 'ascending' ? '↑' : '↓';
-  };
-  
-  // Get the CSS class for a move type
-  const getTypeClass = (type) => {
-    return typeColors[type] || 'bg-gray-400 text-white';
-  };
-  
-  // Get the CSS class for move category
-  const getCategoryClass = (category) => {
-    if (category === 'physical') {
-      return 'bg-orange-600 text-white';
-    } else if (category === 'special') {
-      return 'bg-blue-500 text-white';
-    } else if (category === 'status') {
-      return 'bg-gray-400 text-white';
-    }
-    return '';
-  };
-  
-  if (loading) {
+  if (loading && Object.keys(moveDetails).length === 0) {
     return (
-      <div className="flex justify-center py-8">
-        <div className="border-4 border-gray-200 border-t-red-500 rounded-full w-10 h-10 animate-spin"></div>
+      <div className="flex flex-col items-center justify-center py-8">
+        <div className="border-4 border-gray-200 border-t-red-500 rounded-full w-10 h-10 animate-spin mb-4"></div>
+        <div className="text-gray-600 text-sm">Loading moves...</div>
       </div>
     );
   }
@@ -246,14 +369,31 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
   return (
     <div className="flex flex-col h-full">
       {/* Static header for Pokémon name and image */}
-      <div className="flex flex-col items-center py-2 border-b bg-white z-10">
-        {pokemonImage && (
-          <img src={pokemonImage} alt={pokemonName} className="w-24 h-24 object-contain mb-1" />
-        )}
-        {pokemonName && (
-          <h2 className="text-xl font-bold capitalize mb-1">{pokemonName}</h2>
-        )}
-      </div>
+      {(pokemonImage || pokemonName) && (
+        <div className="flex flex-col items-center py-2 border-b bg-white z-10">
+          {pokemonImage && (
+            <img src={pokemonImage} alt={pokemonName} className="w-24 h-24 object-contain mb-1" />
+          )}
+          {pokemonName && (
+            <h2 className="text-xl font-bold capitalize mb-1">{pokemonName}</h2>
+          )}
+        </div>
+      )}
+      
+      {/* Progress indicator for data loading */}
+      {loading && (
+        <div className="p-2 bg-blue-50 border-b border-blue-100">
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div 
+              className="bg-blue-500 h-2.5 rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${fetchProgress}%` }}
+            ></div>
+          </div>
+          <div className="text-xs text-center mt-1 text-gray-600">
+            Loading move data: {Math.floor(fetchProgress)}%
+          </div>
+        </div>
+      )}
       
       {/* Table with sticky header and body in a single table for alignment */}
       <div className="relative overflow-hidden">
@@ -268,60 +408,33 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
               <col className="w-20" />
               <col className="w-16" />
             </colgroup>
-            <thead className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
-              <tr className="bg-gray-100 text-gray-600 text-left text-sm">
-                <th className="py-2 px-3 cursor-pointer font-medium" onClick={() => handleSort('level')}>
-                  Level {getSortIcon('level')}
-                </th>
-                <th className="py-2 px-3 cursor-pointer font-medium" onClick={() => handleSort('name')}>
-                  Move {getSortIcon('name')}
-                </th>
-                <th className="py-2 px-3 cursor-pointer font-medium" onClick={() => handleSort('type')}>
-                  Type {getSortIcon('type')}
-                </th>
-                <th className="py-2 px-3 cursor-pointer font-medium" onClick={() => handleSort('category')}>
-                  Cat. {getSortIcon('category')}
-                </th>
-                <th className="py-2 px-3 cursor-pointer text-right font-medium" onClick={() => handleSort('power')}>
-                  Pwr. {getSortIcon('power')}
-                </th>
-                <th className="py-2 px-3 cursor-pointer text-right font-medium" onClick={() => handleSort('accuracy')}>
-                  Acc. {getSortIcon('accuracy')}
-                </th>
-                <th className="py-2 px-3 cursor-pointer text-right font-medium" onClick={() => handleSort('pp')}>
-                  PP {getSortIcon('pp')}
-                </th>
-              </tr>
-            </thead>
+            
+            <TableHeader 
+              sortConfig={sortConfig} 
+              handleSort={handleSort} 
+              getSortIcon={getSortIcon}
+            />
+            
             <tbody className="text-gray-700">
-              {sortedMoves().map((move, index) => (
-                <tr 
-                  key={move.name} 
-                  className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-                >
-                  <td className="py-2 px-3">
-                    {getMethodDisplay(move.method, move.level)}
-                  </td>
-                  <td className="py-2 px-3">{move.formattedName}</td>
-                  <td className="py-2 px-3">
-                    {move.type && (
-                      <span className={`px-2 py-1 text-xs rounded-full ${getTypeClass(move.type)}`}>
-                        {formatName(move.type)}
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-2 px-3">
-                    {move.category && (
-                      <span className={`px-2 py-1 text-xs rounded-full ${getCategoryClass(move.category)}`}>
-                        {formatName(move.category)}
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-2 px-3 text-right">{move.power}</td>
-                  <td className="py-2 px-3 text-right">{move.accuracy}</td>
-                  <td className="py-2 px-3 text-right">{move.pp}</td>
-                </tr>
+              {sortedMoves.map((move, index) => (
+                <MoveRow
+                  key={move.name}
+                  move={move}
+                  index={index}
+                  getTypeClass={getTypeClass}
+                  getCategoryClass={getCategoryClass}
+                  getMethodDisplay={getMethodDisplay}
+                  formatName={formatName}
+                />
               ))}
+              
+              {sortedMoves.length === 0 && !loading && (
+                <tr>
+                  <td colSpan="7" className="py-8 text-center text-gray-500">
+                    No move data available
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

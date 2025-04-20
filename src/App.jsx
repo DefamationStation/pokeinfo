@@ -1,13 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import usePokemonList from './hooks/usePokemonList';
 import usePokemonDetails from './hooks/usePokemonDetails';
 import SearchBar from './components/SearchBar';
 import PokemonList from './components/PokemonList';
 import PokemonModal from './components/PokemonModal';
 
+// Memo-ized components for better performance
+const MemoizedSearchBar = memo(SearchBar);
+const MemoizedPokemonList = memo(PokemonList);
+const MemoizedPokemonModal = memo(PokemonModal);
+
 export default function App() {
   // Cache clearing handler
-  const handleClearCache = () => {
+  const handleClearCache = useCallback(() => {
     // Remove main pokemon list
     localStorage.removeItem('pokemonList');
     // Remove all pokemon details
@@ -20,10 +25,20 @@ export default function App() {
       .forEach(key => localStorage.removeItem(key));
     // Reload page to clear in-memory cache
     window.location.reload();
-  };
+  }, []);
+  
   const { filteredList, loadingList, search, setSearch } = usePokemonList();
   const { details, loadingDetails, selectPokemon, clearSelection } = usePokemonDetails();
   const [activeTab, setActiveTab] = useState('stats');
+  
+  // Memoized handlers
+  const handleSearchChange = useCallback((value) => {
+    setSearch(value);
+  }, [setSearch]);
+  
+  const handleTabChange = useCallback((tab) => {
+    setActiveTab(tab);
+  }, []);
 
   return (
     <div className="max-w-6xl mx-auto p-4 relative">
@@ -38,7 +53,7 @@ export default function App() {
       <h1 className="text-4xl font-bold text-center mb-2 text-red-600">Pokédex</h1>
       <p className="text-center text-gray-600 mb-6">Search for any Pokémon to view detailed information</p>
 
-      <SearchBar search={search} onSearchChange={setSearch} />
+      <MemoizedSearchBar search={search} onSearchChange={handleSearchChange} />
 
       {loadingList ? (
         <div className="flex justify-center mt-8">
@@ -49,15 +64,19 @@ export default function App() {
           <p className="text-lg text-gray-600">No Pokémon found matching your search.</p>
         </div>
       ) : (
-        <PokemonList list={filteredList} loading={loadingList} onSelect={selectPokemon} />
+        <MemoizedPokemonList 
+          list={filteredList} 
+          loading={loadingList} 
+          onSelect={selectPokemon} 
+        />
       )}
 
       {details && (
-        <PokemonModal
+        <MemoizedPokemonModal
           details={details}
           loading={loadingDetails}
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={handleTabChange}
           onClose={clearSelection}
         />
       )}

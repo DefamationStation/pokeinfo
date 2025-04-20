@@ -1,20 +1,37 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect, useCallback } from 'react';
 
 export default memo(function PokemonCard({ pokemon, onSelect }) {
   const id = pokemon.url.split('/').filter(Boolean).pop();
   const defaultSprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
   const artwork = pokemon.artwork;
-  const [imgSrc, setImgSrc] = React.useState(artwork || defaultSprite);
+  const [imgSrc, setImgSrc] = useState(artwork || defaultSprite);
+  const [isClicking, setIsClicking] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Reset image source if pokemon changes
     setImgSrc(artwork || defaultSprite);
   }, [artwork, defaultSprite]);
 
+  // Debounced click handler to prevent multiple rapid clicks
+  const handleClick = useCallback((e) => {
+    e.stopPropagation(); // Prevent event bubbling
+    
+    // Prevent double clicks
+    if (isClicking) return;
+    
+    setIsClicking(true);
+    onSelect(pokemon);
+    
+    // Reset clicking state after a short delay
+    setTimeout(() => {
+      setIsClicking(false);
+    }, 300);
+  }, [isClicking, onSelect, pokemon]);
+
   return (
     <div
       className="cursor-pointer p-2 bg-white rounded shadow hover:shadow-lg text-center"
-      onClick={() => onSelect(pokemon)}
+      onClick={handleClick}
     >
       <img
         src={imgSrc}
