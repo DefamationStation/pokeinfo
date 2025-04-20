@@ -1,4 +1,4 @@
-import React, { useState, useCallback, memo, useRef } from 'react';
+import React, { useState, useCallback, memo, useRef, useEffect } from 'react';
 import usePokemonList from './hooks/usePokemonList';
 import usePokemonDetails from './hooks/usePokemonDetails';
 import SearchBar from './components/SearchBar';
@@ -15,9 +15,28 @@ const MemoizedPokemonModal = memo(PokemonModal);
 const MemoizedViewToggle = memo(ViewToggle);
 
 export default function App() {
-  // --- Shared Table State and Cache ---
-  const [visibleCount, setVisibleCount] = useState(30);
+  // Hydrate detailsCache from localStorage on mount
   const detailsCache = useRef({});
+  useEffect(() => {
+    const hydrated = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('pokemonDetails_')) {
+        try {
+          const val = localStorage.getItem(key);
+          if (val) {
+            const parsed = JSON.parse(val);
+            const name = key.replace('pokemonDetails_', '');
+            hydrated[name] = parsed;
+          }
+        } catch (e) {
+          // Ignore broken entries
+        }
+      }
+    }
+    detailsCache.current = hydrated;
+  }, []);
+  const [visibleCount, setVisibleCount] = useState(30);
   const [loadingTableDetails, setLoadingTableDetails] = useState(false);
 
   // Fetch Pokemon details in batches (hoisted from PokemonTable)
