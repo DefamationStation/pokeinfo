@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+
+// Module-level in-memory cache for move details (persists for session)
+const moveCache = {};
 import typeColors from '../../constants/typeColors';
 
 // Memo-ized move row component for better performance
@@ -156,24 +159,43 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
       const moveDetailsObj = {};
       const movesToFetch = [];
       
-      // First check localStorage and memory cache for existing data
+      // First check in-memory cache, then localStorage, then fetch
       moves.forEach(moveInfo => {
         const moveName = moveInfo.move.name;
         const storageKey = 'move_' + moveName;
         
         try {
-          const stored = localStorage.getItem(storageKey);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (parsed && typeof parsed === 'object') {
-              moveDetailsObj[moveName] = parsed;
+          // 1. Check in-memory cache first
+          if (moveCache[moveName]) {
+            moveDetailsObj[moveName] = moveCache[moveName];
+            return;
+          }
+          // 2. Check localStorage
+          try {
+            const stored = localStorage.getItem(storageKey);
+            if (stored) {
+              try {
+                const parsed = JSON.parse(stored);
+                if (parsed && typeof parsed === 'object') {
+                  moveDetailsObj[moveName] = parsed;
+                  // Populate in-memory cache for session reuse
+                  moveCache[moveName] = parsed;
+                } else {
+                  movesToFetch.push(moveInfo);
+                }
+              } catch (jsonErr) {
+                console.error(`Failed to parse move data from localStorage for ${moveName}:`, jsonErr);
+                movesToFetch.push(moveInfo);
+              }
             } else {
               movesToFetch.push(moveInfo);
             }
-          } else {
+          } catch (storageErr) {
+            console.error(`localStorage error for ${moveName}:`, storageErr);
             movesToFetch.push(moveInfo);
           }
-        } catch (e) {
+        } catch (err) {
+          console.error(`Error checking cache for ${moveName}:`, err);
           movesToFetch.push(moveInfo);
         }
       });
@@ -211,14 +233,14 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
               
               const data = await res.json();
               moveDetailsObj[moveInfo.move.name] = data;
-              
+              // Update in-memory cache for session
+              moveCache[moveInfo.move.name] = data;
               // Update localStorage (with error handling)
               try {
                 localStorage.setItem('move_' + moveInfo.move.name, JSON.stringify(data));
               } catch (e) {
                 console.warn('Failed to save move to localStorage:', e);
               }
-              
               // Update state incrementally to show progress
               setMoveDetails(current => ({ ...current, [moveInfo.move.name]: data }));
               
