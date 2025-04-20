@@ -2,25 +2,25 @@ import React from 'react';
 
 export default function DetailsTab({ details }) {
   return (
-    <div className="grid grid-cols-2 gap-4 w-64 max-w-lg mx-auto">
-      <div className="bg-gray-100 p-4 rounded">
-        <h3 className="text-sm text-gray-500">Height</h3>
-        <p>{(details.height / 10).toFixed(1)} m</p>
+    <div className="grid grid-cols-2 gap-3 w-full max-w-md mx-auto">
+      <div className="bg-gray-100 p-3 rounded">
+        <h3 className="text-xs text-gray-500">Height</h3>
+        <p className="text-sm">{(details.height / 10).toFixed(1)} m</p>
       </div>
-      <div className="bg-gray-100 p-4 rounded">
-        <h3 className="text-sm text-gray-500">Weight</h3>
-        <p>{(details.weight / 10).toFixed(1)} kg</p>
+      <div className="bg-gray-100 p-3 rounded">
+        <h3 className="text-xs text-gray-500">Weight</h3>
+        <p className="text-sm">{(details.weight / 10).toFixed(1)} kg</p>
       </div>
-      <div className="bg-gray-100 p-4 rounded">
-        <h3 className="text-sm text-gray-500">Base Experience</h3>
-        <p>{details.base_experience}</p>
+      <div className="bg-gray-100 p-3 rounded">
+        <h3 className="text-xs text-gray-500">Base Experience</h3>
+        <p className="text-sm">{details.base_experience}</p>
       </div>
-      <div className="bg-gray-100 p-4 rounded">
-        <h3 className="text-sm text-gray-500">Pokedex #</h3>
-        <p>{details.order}</p>
+      <div className="bg-gray-100 p-3 rounded">
+        <h3 className="text-xs text-gray-500">Pokedex #</h3>
+        <p className="text-sm">{details.order}</p>
       </div>
       <div className="col-span-full">
-        <h3 className="text-lg font-semibold mt-6 mb-3">Held Items</h3>
+        <h3 className="text-sm font-semibold mt-4 mb-2">Held Items</h3>
         {details.held_items && details.held_items.length > 0 ? (
           <div className="space-y-2">
             {details.held_items.map(heldItemInfo => {
@@ -30,9 +30,9 @@ export default function DetailsTab({ details }) {
                 .join(' ');
 
               return (
-                <div key={heldItemInfo.item.name} className="bg-gray-100 p-3 rounded flex justify-between">
-                  <span>{formattedName}</span>
-                  <span className="text-sm text-gray-600">
+                <div key={heldItemInfo.item.name} className="bg-gray-100 p-2 rounded flex justify-between">
+                  <span className="text-sm">{formattedName}</span>
+                  <span className="text-xs text-gray-600">
                     {heldItemInfo.version_details[0]?.rarity}% chance
                   </span>
                 </div>
@@ -40,7 +40,7 @@ export default function DetailsTab({ details }) {
             })}
           </div>
         ) : (
-          <p className="text-gray-500">No held items</p>
+          <p className="text-sm text-gray-500">No held items</p>
         )}
       </div>
     </div>

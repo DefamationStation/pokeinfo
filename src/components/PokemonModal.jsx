@@ -34,15 +34,15 @@ export default function PokemonModal({ details, loading, activeTab, onTabChange,
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
-      onClick={handleOverlayClick} // Changed from onMouseDown to onClick
+      className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4"
+      onClick={handleOverlayClick}
       aria-modal="true"
       role="dialog"
     >
       <div
         ref={modalRef}
-        className="bg-white rounded-lg w-full max-w-xl h-[48rem] overflow-y-auto p-4 relative"
-        onClick={e => e.stopPropagation()} // Changed from onMouseDown to onClick
+        className="bg-white rounded-lg w-full max-w-xl h-[650px] flex flex-col p-4 relative"
+        onClick={e => e.stopPropagation()}
         tabIndex="-1" // Make it focusable
       >
         <button
@@ -59,7 +59,7 @@ export default function PokemonModal({ details, loading, activeTab, onTabChange,
               <img
                 src={details.sprites.other['official-artwork'].front_default}
                 alt={details.name}
-                className="mx-auto w-32 h-32"
+                className="mx-auto w-24 h-24"
               />
               <h2 className="text-2xl capitalize mt-2">{details.name}</h2>
             </div>
@@ -85,7 +85,7 @@ export default function PokemonModal({ details, loading, activeTab, onTabChange,
               </button>
             </div>
 
-            <div className="p-2">
+            <div className="p-2 h-full overflow-y-auto">
               {activeTab === 'stats' && <StatsTab stats={details.stats} />}
               {activeTab === 'details' && <DetailsTab details={details} />}
               {activeTab === 'moves' && (

@@ -22,14 +22,14 @@ export default function StatsTab({ stats }) {
   };
 
   return (
-    <div className="space-y-4 w-64 max-w-lg mx-auto">
+    <div className="space-y-3 w-full max-w-md mx-auto">
       {stats.map(s => (
-        <div key={s.stat.name} className="mb-3">
+        <div key={s.stat.name} className="mb-2">
           <div className="flex justify-between mb-1">
             <span className="text-sm font-medium">{formatStatName(s.stat.name)}</span>
             <span className="text-sm font-semibold">{s.base_stat}</span>
           </div>
-          <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
+          <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
             <div
               className={`${statColors[s.stat.name] || getStatColor(s.base_stat)} h-full rounded-full transition-all duration-500 ease-out`}
               style={{ width: `${Math.min((s.base_stat / 255) * 100, 100)}%` }}
@@ -39,18 +39,18 @@ export default function StatsTab({ stats }) {
       ))}
       
       {/* Total Stats Row */}
-      <div className="mt-6 pt-4 border-t border-gray-200">
+      <div className="mt-4 pt-3 border-t border-gray-200">
         <div className="flex justify-between mb-1">
           <span className="text-sm font-bold">Total</span>
           <span className="text-sm font-bold">{totalStats}</span>
         </div>
-        <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
+        <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
           <div
             className="bg-purple-600 h-full rounded-full transition-all duration-500 ease-out"
             style={{ width: `${Math.min((totalStats / 600) * 100, 100)}%` }}
           />
         </div>
-        <div className="mt-2 text-xs text-gray-500 text-right">
+        <div className="mt-1 text-xs text-gray-500 text-right">
           Max: 600 (Typical Legendary)
         </div>
       </div>

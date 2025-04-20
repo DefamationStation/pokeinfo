@@ -80,7 +80,7 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
     }
   }, [loading]);
   
-  // Cache some frequently used functions
+  // Format name helper (memoized)
   const formatName = useCallback((name) => {
     return name
       .split('-')
@@ -261,8 +261,8 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
   
   if (shouldShowLoading && Object.keys(moveDetails).length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-8">
-        <div className="border-4 border-gray-200 border-t-red-500 rounded-full w-10 h-10 animate-spin mb-4"></div>
+      <div className="flex flex-col items-center justify-center py-4">
+        <div className="border-4 border-gray-200 border-t-red-500 rounded-full w-8 h-8 animate-spin mb-2"></div>
         <div className="text-gray-600 text-sm">Loading moves...</div>
       </div>
     );
@@ -270,66 +270,64 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
   
   return (
     <div className="flex flex-col h-full">
-      {/* Table with sticky header and body in a single table for alignment */}
-      <div className="relative overflow-hidden">
-        {/* Fixed height progress bar container - MODIFIED */}
-        <div className="h-8 flex items-center">
-          {shouldShowLoading && fetchProgress < 100 ? (
-            <div className="w-full bg-blue-50 px-2 py-1">
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-300 ease-out"
-                  style={{ width: `${fetchProgress}%` }}
-                ></div>
-              </div>
-              <div className="text-xs text-center mt-0.5 text-gray-600">
-                Loading move data: {Math.floor(fetchProgress)}%
-              </div>
+      {/* Progress bar for loading - smaller height */}
+      <div className="h-8 mb-2 flex items-center">
+        {shouldShowLoading && fetchProgress < 100 ? (
+          <div className="w-full">
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-500 h-2 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${fetchProgress}%` }}
+              ></div>
             </div>
-          ) : null}
-        </div>
-        
-        <div className="overflow-y-auto" style={{ maxHeight: '28rem' }}>
-          <table className="min-w-full table-fixed bg-white">
-            <colgroup>
-              <col className="w-20" />
-              <col className="flex-1" />
-              <col className="w-28" />
-              <col className="w-28" />
-              <col className="w-20" />
-              <col className="w-20" />
-              <col className="w-16" />
-            </colgroup>
+            <div className="text-xs text-center mt-0.5 text-gray-600">
+              Loading move data: {Math.floor(fetchProgress)}%
+            </div>
+          </div>
+        ) : null}
+      </div>
+      
+      {/* Table with height that fits within the tab area */}
+      <div className="flex-1 overflow-y-auto">
+        <table className="min-w-full table-fixed bg-white">
+          <colgroup>
+            <col className="w-16" />
+            <col className="flex-1" />
+            <col className="w-24" />
+            <col className="w-24" />
+            <col className="w-16" />
+            <col className="w-16" />
+            <col className="w-16" />
+          </colgroup>
+          
+          <TableHeader 
+            sortConfig={sortConfig} 
+            handleSort={handleSort} 
+            getSortIcon={getSortIcon}
+          />
+          
+          <tbody className="text-gray-700 text-sm">
+            {sortedMoves.map((move, index) => (
+              <MoveRow
+                key={move.name}
+                move={move}
+                index={index}
+                getTypeClass={getTypeClass}
+                getCategoryClass={getCategoryClass}
+                getMethodDisplay={getMethodDisplay}
+                formatName={formatName}
+              />
+            ))}
             
-            <TableHeader 
-              sortConfig={sortConfig} 
-              handleSort={handleSort} 
-              getSortIcon={getSortIcon}
-            />
-            
-            <tbody className="text-gray-700">
-              {sortedMoves.map((move, index) => (
-                <MoveRow
-                  key={move.name}
-                  move={move}
-                  index={index}
-                  getTypeClass={getTypeClass}
-                  getCategoryClass={getCategoryClass}
-                  getMethodDisplay={getMethodDisplay}
-                  formatName={formatName}
-                />
-              ))}
-              
-              {sortedMoves.length === 0 && !loading && (
-                <tr>
-                  <td colSpan="7" className="py-8 text-center text-gray-500">
-                    No move data available
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            {sortedMoves.length === 0 && !loading && (
+              <tr>
+                <td colSpan="7" className="py-4 text-center text-gray-500">
+                  No move data available
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
