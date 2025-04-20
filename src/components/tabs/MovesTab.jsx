@@ -1,8 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
-
-// Module-level in-memory cache for move details (persists for session)
-const moveCache = {};
+import React, { useState, useCallback, useMemo, memo } from 'react';
 import typeColors from '../../constants/typeColors';
+import usePokemonMoves from '../../hooks/usePokemonMoves';
 
 // Memo-ized move row component for better performance
 const MoveRow = memo(({ move, index, getTypeClass, getCategoryClass, getMethodDisplay, formatName }) => {
@@ -65,10 +63,8 @@ const TableHeader = memo(({ sortConfig, handleSort, getSortIcon }) => (
 ));
 
 export default function MovesTab({ moves, pokemonName, pokemonImage }) {
-  const [moveDetails, setMoveDetails] = useState({});
-  const [loading, setLoading] = useState(true);
+  const { moveDetails, loading, fetchProgress } = usePokemonMoves(pokemonName, moves);
   const [sortConfig, setSortConfig] = useState({ key: 'level', direction: 'ascending' });
-  const [fetchProgress, setFetchProgress] = useState(0);
   
   // Cache some frequently used functions
   const formatName = useCallback((name) => {
@@ -145,138 +141,6 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
     }
     setSortConfig({ key, direction });
   }, [sortConfig]);
-  
-  // Optimize move data fetching using batches and AbortController
-  useEffect(() => {
-    const fetchAllMoves = async () => {
-      setLoading(true);
-      setFetchProgress(0);
-      
-      // Create an abort controller to cancel requests if component unmounts
-      const controller = new AbortController();
-      const signal = controller.signal;
-      
-      const moveDetailsObj = {};
-      const movesToFetch = [];
-      
-      // First check in-memory cache, then localStorage, then fetch
-      moves.forEach(moveInfo => {
-        const moveName = moveInfo.move.name;
-        const storageKey = 'move_' + moveName;
-        
-        try {
-          // 1. Check in-memory cache first
-          if (moveCache[moveName]) {
-            moveDetailsObj[moveName] = moveCache[moveName];
-            return;
-          }
-          // 2. Check localStorage
-          try {
-            const stored = localStorage.getItem(storageKey);
-            if (stored) {
-              try {
-                const parsed = JSON.parse(stored);
-                if (parsed && typeof parsed === 'object') {
-                  moveDetailsObj[moveName] = parsed;
-                  // Populate in-memory cache for session reuse
-                  moveCache[moveName] = parsed;
-                } else {
-                  movesToFetch.push(moveInfo);
-                }
-              } catch (jsonErr) {
-                console.error(`Failed to parse move data from localStorage for ${moveName}:`, jsonErr);
-                movesToFetch.push(moveInfo);
-              }
-            } else {
-              movesToFetch.push(moveInfo);
-            }
-          } catch (storageErr) {
-            console.error(`localStorage error for ${moveName}:`, storageErr);
-            movesToFetch.push(moveInfo);
-          }
-        } catch (err) {
-          console.error(`Error checking cache for ${moveName}:`, err);
-          movesToFetch.push(moveInfo);
-        }
-      });
-      
-      // Update with cached data immediately
-      if (Object.keys(moveDetailsObj).length > 0) {
-        setMoveDetails(current => ({ ...current, ...moveDetailsObj }));
-      }
-      
-      // If no moves to fetch, we're done
-      if (movesToFetch.length === 0) {
-        setLoading(false);
-        return;
-      }
-      
-      // Show progress based on how many moves already cached
-      setFetchProgress(
-        (moves.length - movesToFetch.length) / moves.length * 100
-      );
-      
-      // Fetch missing move details in batches
-      const BATCH_SIZE = 5; // Smaller batches for better responsiveness
-      const BATCH_DELAY = 300; // ms between batches to avoid rate limiting
-      
-      for (let i = 0; i < movesToFetch.length; i += BATCH_SIZE) {
-        if (signal.aborted) break;
-        
-        const batch = movesToFetch.slice(i, i + BATCH_SIZE);
-        
-        try {
-          await Promise.all(batch.map(async (moveInfo) => {
-            try {
-              const res = await fetch(moveInfo.move.url, { signal });
-              if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-              
-              const data = await res.json();
-              moveDetailsObj[moveInfo.move.name] = data;
-              // Update in-memory cache for session
-              moveCache[moveInfo.move.name] = data;
-              // Update localStorage (with error handling)
-              try {
-                localStorage.setItem('move_' + moveInfo.move.name, JSON.stringify(data));
-              } catch (e) {
-                console.warn('Failed to save move to localStorage:', e);
-              }
-              // Update state incrementally to show progress
-              setMoveDetails(current => ({ ...current, [moveInfo.move.name]: data }));
-              
-              // Update progress
-              setFetchProgress(prev => {
-                const newProgress = prev + (1 / movesToFetch.length * 100);
-                return Math.min(newProgress, 99); // Cap at 99% until fully complete
-              });
-              
-            } catch (error) {
-              if (error.name === 'AbortError') throw error;
-              console.error(`Failed to fetch details for ${moveInfo.move.name}:`, error);
-            }
-          }));
-          
-          // Add delay between batches
-          if (i + BATCH_SIZE < movesToFetch.length) {
-            await new Promise(r => setTimeout(r, BATCH_DELAY));
-          }
-          
-        } catch (error) {
-          if (error.name === 'AbortError') break;
-          console.error('Batch error:', error);
-        }
-      }
-      
-      setLoading(false);
-      setFetchProgress(100);
-      
-      return () => {
-        controller.abort();
-      };
-    };
-    
-    fetchAllMoves();
-  }, [moves]);
   
   // Prepare and sort move data (memoized for performance)
   const preparedMoves = useMemo(() => {
@@ -390,17 +254,7 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
   
   return (
     <div className="flex flex-col h-full">
-      {/* Static header for Pokémon name and image */}
-      {(pokemonImage || pokemonName) && (
-        <div className="flex flex-col items-center py-2 border-b bg-white z-10">
-          {pokemonImage && (
-            <img src={pokemonImage} alt={pokemonName} className="w-24 h-24 object-contain mb-1" />
-          )}
-          {pokemonName && (
-            <h2 className="text-xl font-bold capitalize mb-1">{pokemonName}</h2>
-          )}
-        </div>
-      )}
+
       
       {/* Progress indicator for data loading */}
       {loading && (

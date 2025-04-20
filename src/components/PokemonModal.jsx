@@ -88,7 +88,13 @@ export default function PokemonModal({ details, loading, activeTab, onTabChange,
             <div className="p-2">
               {activeTab === 'stats' && <StatsTab stats={details.stats} />}
               {activeTab === 'details' && <DetailsTab details={details} />}
-              {activeTab === 'moves' && <MovesTab moves={details.moves} />}
+              {activeTab === 'moves' && (
+                <MovesTab
+                  moves={details.moves}
+                  pokemonName={details.name}
+                  pokemonImage={details.sprites.other['official-artwork'].front_default}
+                />
+              )}
             </div>
           </>
         )}
