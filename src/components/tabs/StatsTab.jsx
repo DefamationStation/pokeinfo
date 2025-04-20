@@ -72,7 +72,6 @@ export default function StatsTab({ stats, types = [] }) {
           />
         </div>
         <div className="mt-1 text-xs text-gray-500 text-right">
-          Max: 600 (Typical Legendary)
         </div>
       </div>
     </div>

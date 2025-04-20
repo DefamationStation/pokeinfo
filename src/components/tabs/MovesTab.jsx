@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
 import typeColors from '../../constants/typeColors';
-import usePokemonMoves from '../../hooks/usePokemonMoves';
 
 // Memo-ized move row component for better performance
 const MoveRow = memo(({ move, index, getTypeClass, getCategoryClass, getMethodDisplay, formatName }) => {
@@ -62,8 +61,7 @@ const TableHeader = memo(({ sortConfig, handleSort, getSortIcon }) => (
   </thead>
 ));
 
-export default function MovesTab({ moves, pokemonName, pokemonImage }) {
-  const { moveDetails, loading, fetchProgress } = usePokemonMoves(pokemonName, moves);
+export default function MovesTab({ moves, pokemonName, pokemonImage, moveDetails, loading, fetchProgress }) {
   const [sortConfig, setSortConfig] = useState({ key: 'level', direction: 'ascending' });
   const [showLoading, setShowLoading] = useState(false);
   

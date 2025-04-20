@@ -3,9 +3,11 @@ import StatsTab from './tabs/StatsTab';
 import DetailsTab from './tabs/DetailsTab';
 import MovesTab from './tabs/MovesTab';
 import TeraTab from './tabs/TeraTab';
+import usePokemonMoves from '../hooks/usePokemonMoves';
 
 export default function PokemonModal({ details, loading, activeTab, onTabChange, onClose }) {
   const modalRef = useRef(null);
+  const { moveDetails, loading: movesLoading, fetchProgress } = usePokemonMoves(details.name, details.moves);
 
   // Close on ESC key
   useEffect(() => {
@@ -100,6 +102,9 @@ export default function PokemonModal({ details, loading, activeTab, onTabChange,
                   moves={details.moves}
                   pokemonName={details.name}
                   pokemonImage={details.sprites.other['official-artwork'].front_default}
+                  moveDetails={moveDetails}
+                  loading={movesLoading}
+                  fetchProgress={fetchProgress}
                 />
               )}
               {activeTab === 'details' && <DetailsTab details={details} />}
