@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import typeColors from '../../constants/typeColors';
 
-export default function MovesTab({ moves }) {
+export default function MovesTab({ moves, pokemonName, pokemonImage }) {
   const [moveDetails, setMoveDetails] = useState({});
   const [loading, setLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: 'level', direction: 'ascending' });
@@ -244,8 +244,20 @@ export default function MovesTab({ moves }) {
   }
   
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full bg-white">
+    <div className="flex flex-col h-full">
+      {/* Static header for Pokémon name and image */}
+      <div className="flex flex-col items-center py-2 border-b bg-white z-10">
+        {pokemonImage && (
+          <img src={pokemonImage} alt={pokemonName} className="w-24 h-24 object-contain mb-1" />
+        )}
+        {pokemonName && (
+          <h2 className="text-xl font-bold capitalize mb-1">{pokemonName}</h2>
+        )}
+      </div>
+      {/* Scrollable moves table */}
+      <div className="overflow-y-auto flex-1" style={{ maxHeight: '28rem' }}>
+        <div className="overflow-x-auto">
+          <table className="min-w-full bg-white">
         <thead>
           <tr className="bg-gray-100 text-gray-600 text-left text-sm">
             <th 
@@ -323,6 +335,8 @@ export default function MovesTab({ moves }) {
           ))}
         </tbody>
       </table>
+        </div>
+      </div>
     </div>
   );
 }
