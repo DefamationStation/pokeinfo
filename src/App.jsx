@@ -15,6 +15,63 @@ const MemoizedPokemonModal = memo(PokemonModal);
 const MemoizedViewToggle = memo(ViewToggle);
 
 export default function App() {
+  // --- Shared Table State and Cache ---
+  const [visibleCount, setVisibleCount] = useState(30);
+  const detailsCache = useRef({});
+  const [loadingTableDetails, setLoadingTableDetails] = useState(false);
+
+  // Fetch Pokemon details in batches (hoisted from PokemonTable)
+  const fetchPokemonDetails = useCallback(async (pokemonList) => {
+    if (!pokemonList || pokemonList.length === 0) return;
+    setLoadingTableDetails(true);
+    // Prepare batch of Pokemon to fetch
+    const pokemonToFetch = pokemonList.filter(p => !detailsCache.current[p.name]);
+    if (pokemonToFetch.length === 0) {
+      setLoadingTableDetails(false);
+      return;
+    }
+    const batchSize = 10;
+    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+    for (let i = 0; i < pokemonToFetch.length; i += batchSize) {
+      const batch = pokemonToFetch.slice(i, i + batchSize);
+      await Promise.all(batch.map(async (pokemon) => {
+        try {
+          // First check localStorage
+          const storageKey = `pokemonDetails_${pokemon.name}`;
+          try {
+            const cachedData = localStorage.getItem(storageKey);
+            if (cachedData) {
+              const data = JSON.parse(cachedData);
+              if (data) {
+                detailsCache.current[pokemon.name] = data;
+                return;
+              }
+            }
+          } catch (e) {
+            console.warn('Error reading from localStorage:', e);
+          }
+          // Fetch if not in localStorage
+          const response = await fetch(pokemon.url);
+          if (!response.ok) throw new Error(`Failed to fetch details for ${pokemon.name}`);
+          const data = await response.json();
+          detailsCache.current[pokemon.name] = data;
+          // Save to localStorage
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(data));
+          } catch (e) {
+            console.warn('Error saving to localStorage:', e);
+          }
+        } catch (error) {
+          console.error(`Error fetching details for ${pokemon.name}:`, error);
+        }
+      }));
+      // Small delay between batches to avoid rate limiting
+      if (i + batchSize < pokemonToFetch.length) {
+        await delay(300);
+      }
+    }
+    setLoadingTableDetails(false);
+  }, []);
   const { filteredList, loadingList, search, setSearch } = usePokemonList();
   const { details, loadingDetails, selectPokemon, clearSelection } = usePokemonDetails();
   const [activeTab, setActiveTab] = useState('stats');
@@ -164,6 +221,11 @@ export default function App() {
               list={filteredList} 
               loading={loadingList} 
               onSelect={selectPokemon} 
+              visibleCount={visibleCount}
+              setVisibleCount={setVisibleCount}
+              detailsCache={detailsCache}
+              fetchPokemonDetails={fetchPokemonDetails}
+              loadingTableDetails={loadingTableDetails}
             />
           )}
         </>

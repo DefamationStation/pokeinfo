@@ -2,14 +2,11 @@ import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 import typeColors from '../constants/typeColors';
 import { getStatColor } from '../utils/stat';
 
-const PokemonTable = ({ list, loading, onSelect }) => {
+const PokemonTable = ({ list, loading, onSelect, visibleCount, setVisibleCount, detailsCache, fetchPokemonDetails, loadingTableDetails }) => {
   const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'ascending' });
   const [pokemonDetails, setPokemonDetails] = useState({});
-  const [loadingDetails, setLoadingDetails] = useState(false);
   const [visiblePokemons, setVisiblePokemons] = useState([]);
   const abortControllerRef = useRef(null);
-  const detailsCache = useRef({});
-  const [visibleCount, setVisibleCount] = useState(30);
   const tableRef = useRef(null);
   
   // Extract Pokemon ID from URL
@@ -72,85 +69,8 @@ const PokemonTable = ({ list, loading, onSelect }) => {
     );
   }, [sortConfig]);
   
-  // Fetch Pokemon details in batches
-  const fetchPokemonDetails = useCallback(async (pokemonList) => {
-    if (!pokemonList || pokemonList.length === 0) return;
-    
-    // Cancel any previous requests
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    const signal = controller.signal;
-    
-    setLoadingDetails(true);
-    
-    // Prepare batch of Pokemon to fetch
-    const pokemonToFetch = pokemonList.filter(p => !detailsCache.current[p.name]);
-    
-    if (pokemonToFetch.length === 0) {
-      setLoadingDetails(false);
-      return;
-    }
-    
-    const batchSize = 10;
-    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-    
-    for (let i = 0; i < pokemonToFetch.length; i += batchSize) {
-      if (signal.aborted) break;
-      
-      const batch = pokemonToFetch.slice(i, i + batchSize);
-      
-      await Promise.all(batch.map(async (pokemon) => {
-        try {
-          // First check localStorage
-          const storageKey = `pokemonDetails_${pokemon.name}`;
-          try {
-            const cachedData = localStorage.getItem(storageKey);
-            if (cachedData) {
-              const data = JSON.parse(cachedData);
-              if (data) {
-                detailsCache.current[pokemon.name] = data;
-                return;
-              }
-            }
-          } catch (e) {
-            console.warn('Error reading from localStorage:', e);
-          }
-          
-          // Fetch if not in localStorage
-          const response = await fetch(pokemon.url, { signal });
-          if (!response.ok) throw new Error(`Failed to fetch details for ${pokemon.name}`);
-          
-          const data = await response.json();
-          detailsCache.current[pokemon.name] = data;
-          
-          // Save to localStorage
-          try {
-            localStorage.setItem(storageKey, JSON.stringify(data));
-          } catch (e) {
-            console.warn('Error saving to localStorage:', e);
-          }
-        } catch (error) {
-          if (error.name !== 'AbortError') {
-            console.error(`Error fetching details for ${pokemon.name}:`, error);
-          }
-        }
-      }));
-      
-      // Update the details state
-      setPokemonDetails({...detailsCache.current});
-      
-      // Small delay between batches to avoid rate limiting
-      if (i + batchSize < pokemonToFetch.length && !signal.aborted) {
-        await delay(300);
-      }
-    }
-    
-    setLoadingDetails(false);
-  }, []);
+  // fetchPokemonDetails is now a prop from App
+
   
   // Sort the list
   const sortedList = React.useMemo(() => {
@@ -239,12 +159,12 @@ const PokemonTable = ({ list, loading, onSelect }) => {
     // If we're near the bottom (within 200px), load more
     if (scrollHeight - scrollTop - clientHeight < 200) {
       // Don't load more if we already have all Pokemon or if we're still loading
-      if (visibleCount >= sortedList.length || loadingDetails) return;
+      if (visibleCount >= sortedList.length || loadingTableDetails) return;
       
       // Load next batch of Pokemon
       setVisibleCount(prev => Math.min(prev + 20, sortedList.length));
     }
-  }, [visibleCount, sortedList.length, loadingDetails]);
+  }, [visibleCount, sortedList.length, loadingTableDetails]);
   
   // Set visible pokemons based on sorted list and visible count
   useEffect(() => {
@@ -265,15 +185,26 @@ const PokemonTable = ({ list, loading, onSelect }) => {
       }
     };
   }, [handleScroll]);
+
+  // Automatic slow loader for table rows
+  useEffect(() => {
+    if (visibleCount >= sortedList.length) return;
+    const interval = setInterval(() => {
+      setVisibleCount(prev => {
+        if (prev < sortedList.length) {
+          return Math.min(prev + 10, sortedList.length);
+        }
+        return prev;
+      });
+    }, 600);
+    return () => clearInterval(interval);
+  }, [visibleCount, sortedList.length, setVisibleCount]);
+
   
   // Fetch details when visible pokemons change
   useEffect(() => {
     fetchPokemonDetails(visiblePokemons);
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
+    // No abort logic here since fetchPokemonDetails is now hoisted
   }, [visiblePokemons, fetchPokemonDetails]);
 
   if (loading) {
@@ -438,7 +369,7 @@ const PokemonTable = ({ list, loading, onSelect }) => {
         </table>
         
         {/* Loading indicator at the bottom */}
-        {loadingDetails && (
+        {loadingTableDetails && (
           <div className="flex justify-center p-4">
             <div className="loader border-4 border-gray-200 border-t-red-500 rounded-full w-6 h-6 animate-spin"></div>
           </div>
