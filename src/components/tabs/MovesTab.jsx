@@ -270,24 +270,25 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
   
   return (
     <div className="flex flex-col h-full">
-      
-      {/* Progress indicator for data loading */}
-      {shouldShowLoading && fetchProgress < 100 && (
-        <div className="p-2 bg-blue-50 border-b border-blue-100">
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div 
-              className="bg-blue-500 h-2.5 rounded-full transition-all duration-300 ease-out"
-              style={{ width: `${fetchProgress}%` }}
-            ></div>
-          </div>
-          <div className="text-xs text-center mt-1 text-gray-600">
-            Loading move data: {Math.floor(fetchProgress)}%
-          </div>
-        </div>
-      )}
-      
       {/* Table with sticky header and body in a single table for alignment */}
       <div className="relative overflow-hidden">
+        {/* Fixed height progress bar container - MODIFIED */}
+        <div className="h-8 flex items-center">
+          {shouldShowLoading && fetchProgress < 100 ? (
+            <div className="w-full bg-blue-50 px-2 py-1">
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${fetchProgress}%` }}
+                ></div>
+              </div>
+              <div className="text-xs text-center mt-0.5 text-gray-600">
+                Loading move data: {Math.floor(fetchProgress)}%
+              </div>
+            </div>
+          ) : null}
+        </div>
+        
         <div className="overflow-y-auto" style={{ maxHeight: '28rem' }}>
           <table className="min-w-full table-fixed bg-white">
             <colgroup>
