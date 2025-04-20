@@ -1,14 +1,55 @@
-import React, { memo, useState, useEffect, useCallback } from 'react';
+import React, { memo, useState, useCallback } from 'react';
+import typeColors from '../constants/typeColors';
 
 export default memo(function PokemonCard({ pokemon, onSelect }) {
-  const artwork = pokemon.artwork;
-  const [imgSrc, setImgSrc] = useState(artwork);
-  const placeholder = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png'; // Pokéball icon
+  // Default placeholder
+  const placeholder = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png';
+  
+  // Extract pokemon ID for fallback sprite if needed
+  const getPokemonId = (url) => {
+    try {
+      return parseInt(url.split('/').filter(Boolean).pop());
+    } catch (e) {
+      return null;
+    }
+  };
+  
+  // Determine the best image source to use with fallbacks
+  const getBestImageSource = () => {
+    // Try official artwork first (highest quality)
+    if (pokemon.artwork) {
+      return pokemon.artwork;
+    }
+    
+    // Try regular sprite next
+    if (pokemon.sprite) {
+      return pokemon.sprite;
+    }
+    
+    // If we have a URL, we can try to generate the sprite URL from the pokemon ID
+    if (pokemon.url) {
+      const id = getPokemonId(pokemon.url);
+      if (id) {
+        return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+      }
+    }
+    
+    // Last resort fallback
+    return placeholder;
+  };
+  
   const [isClicking, setIsClicking] = useState(false);
-
-  useEffect(() => {
-    setImgSrc(artwork);
-  }, [artwork]);
+  const [imgError, setImgError] = useState(false);
+  
+  // Get the initial image source
+  const initialSource = getBestImageSource();
+  
+  // Handle image error - only fall back to placeholder
+  const handleImageError = () => {
+    if (!imgError) {
+      setImgError(true);
+    }
+  };
 
   // Debounced click handler to prevent multiple rapid clicks
   const handleClick = useCallback((e) => {
@@ -32,17 +73,26 @@ export default memo(function PokemonCard({ pokemon, onSelect }) {
       onClick={handleClick}
     >
       <img
-        src={imgSrc || placeholder}
+        src={imgError ? placeholder : initialSource}
         alt={pokemon.name || 'Pokémon'}
-        className="mx-auto mb-2"
-        onError={() => {
-          // If both default sprite and artwork fail, show Pokéball placeholder
-          if (imgSrc !== placeholder) {
-            setImgSrc(placeholder);
-          }
-        }}
+        className="mx-auto mb-2 h-24 w-24 object-contain"
+        onError={handleImageError}
       />
-      <h3 className="capitalize">{pokemon.name}</h3>
+      <h3 className="capitalize text-sm mt-2">{pokemon.name}</h3>
+      
+      {/* Display pokemon types if available */}
+      {pokemon.types && pokemon.types.length > 0 && (
+        <div className="mt-1 flex justify-center gap-1">
+          {pokemon.types.map(typeObj => (
+            <span 
+              key={typeObj.type.name}
+              className={`px-1 py-0.5 text-xs rounded-full ${typeColors[typeObj.type.name] || typeColors.normal}`}
+            >
+              {typeObj.type.name}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 });
