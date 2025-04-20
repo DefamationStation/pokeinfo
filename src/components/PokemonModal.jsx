@@ -41,7 +41,7 @@ export default function PokemonModal({ details, loading, activeTab, onTabChange,
     >
       <div
         ref={modalRef}
-        className="bg-white rounded-lg w-full max-w-xl h-[650px] flex flex-col p-4 relative"
+        className="bg-white rounded-lg w-full max-w-xl h-[750px] flex flex-col p-4 relative"
         onClick={e => e.stopPropagation()}
         tabIndex="-1" // Make it focusable
       >
@@ -65,37 +65,37 @@ export default function PokemonModal({ details, loading, activeTab, onTabChange,
             </div>
 
             <div className="flex justify-center space-x-4 mb-4">
-              <button
-                onClick={() => onTabChange('stats')}
-                className={`px-4 py-2 ${activeTab === 'stats' ? 'border-b-2 border-blue-500' : ''}`}
-              >
-                Stats
-              </button>
-              <button
-                onClick={() => onTabChange('details')}
-                className={`px-4 py-2 ${activeTab === 'details' ? 'border-b-2 border-blue-500' : ''}`}
-              >
-                Details
-              </button>
-              <button
-                onClick={() => onTabChange('moves')}
-                className={`px-4 py-2 ${activeTab === 'moves' ? 'border-b-2 border-blue-500' : ''}`}
-              >
-                Moves
-              </button>
-            </div>
+  <button
+    onClick={() => onTabChange('stats')}
+    className={`px-4 py-2 ${activeTab === 'stats' ? 'border-b-2 border-blue-500' : ''}`}
+  >
+    Stats
+  </button>
+  <button
+    onClick={() => onTabChange('moves')}
+    className={`px-4 py-2 ${activeTab === 'moves' ? 'border-b-2 border-blue-500' : ''}`}
+  >
+    Moves
+  </button>
+  <button
+    onClick={() => onTabChange('details')}
+    className={`px-4 py-2 ${activeTab === 'details' ? 'border-b-2 border-blue-500' : ''}`}
+  >
+    Details
+  </button>
+</div>
 
             <div className="p-2 h-full overflow-y-auto">
-              {activeTab === 'stats' && <StatsTab stats={details.stats} />}
-              {activeTab === 'details' && <DetailsTab details={details} />}
-              {activeTab === 'moves' && (
-                <MovesTab
-                  moves={details.moves}
-                  pokemonName={details.name}
-                  pokemonImage={details.sprites.other['official-artwork'].front_default}
-                />
-              )}
-            </div>
+  {activeTab === 'stats' && <StatsTab stats={details.stats} types={details.types} />}
+  {activeTab === 'moves' && (
+    <MovesTab
+      moves={details.moves}
+      pokemonName={details.name}
+      pokemonImage={details.sprites.other['official-artwork'].front_default}
+    />
+  )}
+  {activeTab === 'details' && <DetailsTab details={details} />}
+</div>
           </>
         )}
       </div>
