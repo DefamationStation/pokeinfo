@@ -102,7 +102,17 @@ export default function usePokemonList() {
         // Remove unwanted forms if needed
         const cleaned = allResults.filter(p => {
           const name = p.name.toLowerCase();
-          return !name.startsWith('miraidon-') && !name.startsWith('koraidon-');
+          return !name.includes('-') || (
+            !name.startsWith('miraidon-') && 
+            !name.startsWith('koraidon-') &&
+            !name.includes('-mega') &&
+            !name.includes('-gmax') &&
+            !name.includes('-totem') &&
+            !name.includes('-alola') &&
+            !name.includes('-galar') &&
+            !name.includes('-hisui') &&
+            !name.includes('-paldea')
+          );
         });
         setPokemonList(cleaned);
         setFilteredList(cleaned);
