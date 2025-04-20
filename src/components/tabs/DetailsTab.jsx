@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function DetailsTab({ details }) {
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-2 gap-4 w-64 max-w-lg mx-auto">
       <div className="bg-gray-100 p-4 rounded">
         <h3 className="text-sm text-gray-500">Height</h3>
         <p>{(details.height / 10).toFixed(1)} m</p>

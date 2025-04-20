@@ -254,87 +254,76 @@ export default function MovesTab({ moves, pokemonName, pokemonImage }) {
           <h2 className="text-xl font-bold capitalize mb-1">{pokemonName}</h2>
         )}
       </div>
-      {/* Scrollable moves table */}
-      <div className="overflow-y-auto flex-1" style={{ maxHeight: '28rem' }}>
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white">
-        <thead>
-          <tr className="bg-gray-100 text-gray-600 text-left text-sm">
-            <th 
-              className="py-2 px-3 cursor-pointer" 
-              onClick={() => handleSort('level')}
-            >
-              Level {getSortIcon('level')}
-            </th>
-            <th 
-              className="py-2 px-3 cursor-pointer" 
-              onClick={() => handleSort('name')}
-            >
-              Move {getSortIcon('name')}
-            </th>
-            <th 
-              className="py-2 px-3 cursor-pointer" 
-              onClick={() => handleSort('type')}
-            >
-              Type {getSortIcon('type')}
-            </th>
-            <th 
-              className="py-2 px-3 cursor-pointer" 
-              onClick={() => handleSort('category')}
-            >
-              Cat. {getSortIcon('category')}
-            </th>
-            <th 
-              className="py-2 px-3 cursor-pointer text-right" 
-              onClick={() => handleSort('power')}
-            >
-              Pwr. {getSortIcon('power')}
-            </th>
-            <th 
-              className="py-2 px-3 cursor-pointer text-right" 
-              onClick={() => handleSort('accuracy')}
-            >
-              Acc. {getSortIcon('accuracy')}
-            </th>
-            <th 
-              className="py-2 px-3 cursor-pointer text-right" 
-              onClick={() => handleSort('pp')}
-            >
-              PP {getSortIcon('pp')}
-            </th>
-          </tr>
-        </thead>
-        <tbody className="text-gray-700">
-          {sortedMoves().map((move, index) => (
-            <tr 
-              key={move.name} 
-              className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-            >
-              <td className="py-2 px-3">
-                {getMethodDisplay(move.method, move.level)}
-              </td>
-              <td className="py-2 px-3">{move.formattedName}</td>
-              <td className="py-2 px-3">
-                {move.type && (
-                  <span className={`px-2 py-1 text-xs rounded-full ${getTypeClass(move.type)}`}>
-                    {formatName(move.type)}
-                  </span>
-                )}
-              </td>
-              <td className="py-2 px-3">
-                {move.category && (
-                  <span className={`px-2 py-1 text-xs rounded-full ${getCategoryClass(move.category)}`}>
-                    {formatName(move.category)}
-                  </span>
-                )}
-              </td>
-              <td className="py-2 px-3 text-right">{move.power}</td>
-              <td className="py-2 px-3 text-right">{move.accuracy}</td>
-              <td className="py-2 px-3 text-right">{move.pp}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      
+      {/* Table with sticky header and body in a single table for alignment */}
+      <div className="relative overflow-hidden">
+        <div className="overflow-y-auto" style={{ maxHeight: '28rem' }}>
+          <table className="min-w-full table-fixed bg-white">
+            <colgroup>
+              <col className="w-20" />
+              <col className="flex-1" />
+              <col className="w-28" />
+              <col className="w-28" />
+              <col className="w-20" />
+              <col className="w-20" />
+              <col className="w-16" />
+            </colgroup>
+            <thead className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
+              <tr className="bg-gray-100 text-gray-600 text-left text-sm">
+                <th className="py-2 px-3 cursor-pointer font-medium" onClick={() => handleSort('level')}>
+                  Level {getSortIcon('level')}
+                </th>
+                <th className="py-2 px-3 cursor-pointer font-medium" onClick={() => handleSort('name')}>
+                  Move {getSortIcon('name')}
+                </th>
+                <th className="py-2 px-3 cursor-pointer font-medium" onClick={() => handleSort('type')}>
+                  Type {getSortIcon('type')}
+                </th>
+                <th className="py-2 px-3 cursor-pointer font-medium" onClick={() => handleSort('category')}>
+                  Cat. {getSortIcon('category')}
+                </th>
+                <th className="py-2 px-3 cursor-pointer text-right font-medium" onClick={() => handleSort('power')}>
+                  Pwr. {getSortIcon('power')}
+                </th>
+                <th className="py-2 px-3 cursor-pointer text-right font-medium" onClick={() => handleSort('accuracy')}>
+                  Acc. {getSortIcon('accuracy')}
+                </th>
+                <th className="py-2 px-3 cursor-pointer text-right font-medium" onClick={() => handleSort('pp')}>
+                  PP {getSortIcon('pp')}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="text-gray-700">
+              {sortedMoves().map((move, index) => (
+                <tr 
+                  key={move.name} 
+                  className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                >
+                  <td className="py-2 px-3">
+                    {getMethodDisplay(move.method, move.level)}
+                  </td>
+                  <td className="py-2 px-3">{move.formattedName}</td>
+                  <td className="py-2 px-3">
+                    {move.type && (
+                      <span className={`px-2 py-1 text-xs rounded-full ${getTypeClass(move.type)}`}>
+                        {formatName(move.type)}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 px-3">
+                    {move.category && (
+                      <span className={`px-2 py-1 text-xs rounded-full ${getCategoryClass(move.category)}`}>
+                        {formatName(move.category)}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 px-3 text-right">{move.power}</td>
+                  <td className="py-2 px-3 text-right">{move.accuracy}</td>
+                  <td className="py-2 px-3 text-right">{move.pp}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

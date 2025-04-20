@@ -22,7 +22,7 @@ export default function StatsTab({ stats }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-64 max-w-lg mx-auto">
       {stats.map(s => (
         <div key={s.stat.name} className="mb-3">
           <div className="flex justify-between mb-1">
