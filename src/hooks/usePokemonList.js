@@ -13,11 +13,13 @@ const hydratePokemonDetails = async (list, setPokemonList, setFilteredList) => {
       const details = await res.json();
       let types = [];
       let artwork = null;
+      let sprite = null;
       if (details && details.types && Array.isArray(details.types)) {
         types = details.types;
         artwork = details.sprites?.other?.['official-artwork']?.front_default || null;
+        sprite = details.sprites?.front_default || null;
       }
-      updatedList[i] = { ...p, types, artwork };
+      updatedList[i] = { ...p, types, artwork, sprite };
       setPokemonList(updatedList.slice());
       setFilteredList(updatedList.slice());
       localStorage.setItem('pokemonList', JSON.stringify(updatedList));

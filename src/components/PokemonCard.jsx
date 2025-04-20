@@ -7,7 +7,6 @@ export default memo(function PokemonCard({ pokemon, onSelect }) {
   const [isClicking, setIsClicking] = useState(false);
 
   useEffect(() => {
-    // Reset image source if pokemon changes
     setImgSrc(artwork);
   }, [artwork]);
 

@@ -331,10 +331,7 @@ const PokemonTable = ({ list, loading, onSelect, visibleCount, setVisibleCount, 
                   </td>
                   <td className="px-1 py-1 whitespace-nowrap">
                     <img
-                      src={(() => {
-                        const id = pokemon.url ? pokemon.url.split('/').filter(Boolean).pop() : null;
-                        return id ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png` : 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png';
-                      })()}
+                      src={pokemon.sprite || 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png'}
                       alt={pokemon.name || 'Pokémon'}
                       className="w-6 h-6"
                       onError={e => { e.target.onerror = null; e.target.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png'; }}
