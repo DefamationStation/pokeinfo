@@ -298,7 +298,7 @@ export function calculateBestTypes(originalTypes, teraType) {
   const originalTypeNames = originalTypes.map(t => t.type.name);
   
   // Get types that are super effective against the selected Tera type
-  const superEffectiveAgainstTera = typeEffectiveness[teraType].superEffective;
+  const superEffectiveAgainstTera = typeEffectiveness[teraType]?.superEffective || [];
   
   // Find types that are vulnerable to the original Pokemon types
   const vulnerableTypes = new Set();
@@ -330,31 +330,50 @@ export function calculateBestTypes(originalTypes, teraType) {
       typeScores[type] += 10;
     }
     
-    // Calculate defensive value against original types
+    // Check if this type is vulnerable to any of the original types (double-check)
+    let isVulnerableToOriginal = false;
+    
     originalTypeNames.forEach(originalType => {
-      // Bonus for resisting the original type
-      if (typeEffectiveness[originalType].notVeryEffective.includes(type)) {
+      if (typeOffensive[originalType] && 
+          typeOffensive[originalType].superEffective && 
+          typeOffensive[originalType].superEffective.includes(type)) {
+        isVulnerableToOriginal = true;
+      }
+    });
+    
+    // Apply a large penalty if this type is vulnerable to the original Pokemon
+    if (isVulnerableToOriginal) {
+      typeScores[type] -= 20; // Large penalty to make it very unlikely to be recommended
+    }
+    
+    // Calculate defensive value against original types - THIS IS THE KEY FIX
+    originalTypeNames.forEach(originalType => {
+      // We need to use typeOffensive here, not typeEffectiveness!
+      // Check if this type resists attacks from the original type
+      if (typeOffensive[originalType] && typeOffensive[originalType].notVeryEffective && 
+          typeOffensive[originalType].notVeryEffective.includes(type)) {
         typeScores[type] += 3;
       }
       
-      // Bigger bonus for being immune to the original type
-      if (typeEffectiveness[originalType].noEffect.includes(type)) {
+      // Check if this type is immune to the original type
+      if (typeOffensive[originalType] && typeOffensive[originalType].noEffect && 
+          typeOffensive[originalType].noEffect.includes(type)) {
         typeScores[type] += 5;
       }
     });
     
     // Penalty for being weak to Tera type
-    if (typeEffectiveness[teraType].superEffective.includes(type)) {
+    if (typeEffectiveness[teraType]?.superEffective?.includes(type)) {
       typeScores[type] -= 2;
     }
     
     // Bonus for resisting Tera type
-    if (typeEffectiveness[teraType].notVeryEffective.includes(type)) {
+    if (typeEffectiveness[teraType]?.notVeryEffective?.includes(type)) {
       typeScores[type] += 1;
     }
     
     // Bonus for being immune to Tera type
-    if (typeEffectiveness[teraType].noEffect.includes(type)) {
+    if (typeEffectiveness[teraType]?.noEffect?.includes(type)) {
       typeScores[type] += 2;
     }
   });
@@ -364,6 +383,9 @@ export function calculateBestTypes(originalTypes, teraType) {
     [...safeAndEffective].sort((a, b) => typeScores[b] - typeScores[a]) : 
     [...safeTypes].sort((a, b) => typeScores[b] - typeScores[a]);
   
+  // Remove any types with negative scores (types that are bad choices)
+  bestSingleTypes = bestSingleTypes.filter(type => typeScores[type] > 0);
+  
   // For dual types, we're looking for combinations where:
   // 1. Neither type is vulnerable to original types
   // 2. At least one type is super effective against Tera (if possible)
@@ -372,10 +394,18 @@ export function calculateBestTypes(originalTypes, teraType) {
   
   for (let i = 0; i < safeTypes.length; i++) {
     const type1 = safeTypes[i];
+    
+    // Skip if this type has a negative score (vulnerable)
+    if (typeScores[type1] <= 0) continue;
+    
     const type1EffectiveVsTera = superEffectiveAgainstTera.includes(type1);
     
     for (let j = i + 1; j < safeTypes.length; j++) {
       const type2 = safeTypes[j];
+      
+      // Skip if this type has a negative score (vulnerable)
+      if (typeScores[type2] <= 0) continue;
+      
       const type2EffectiveVsTera = superEffectiveAgainstTera.includes(type2);
       
       // Prioritize pairs where at least one is super effective against Tera
@@ -385,23 +415,25 @@ export function calculateBestTypes(originalTypes, teraType) {
       let coverageScore = 0;
       
       // Check how type2 covers type1's weaknesses
-      if (typeEffectiveness[type1] && typeEffectiveness[type1].superEffective) {
+      if (typeEffectiveness[type1]?.superEffective) {
         typeEffectiveness[type1].superEffective.forEach(weakness => {
-          if (typeEffectiveness[weakness] && 
-             (typeEffectiveness[weakness].notVeryEffective.includes(type2) || 
-              typeEffectiveness[weakness].noEffect.includes(type2))) {
-            coverageScore += 2;
+          if (typeEffectiveness[weakness]) {
+            if (typeEffectiveness[weakness].notVeryEffective?.includes(type2) || 
+                typeEffectiveness[weakness].noEffect?.includes(type2)) {
+              coverageScore += 2;
+            }
           }
         });
       }
       
       // Check how type1 covers type2's weaknesses
-      if (typeEffectiveness[type2] && typeEffectiveness[type2].superEffective) {
+      if (typeEffectiveness[type2]?.superEffective) {
         typeEffectiveness[type2].superEffective.forEach(weakness => {
-          if (typeEffectiveness[weakness] && 
-             (typeEffectiveness[weakness].notVeryEffective.includes(type1) || 
-              typeEffectiveness[weakness].noEffect.includes(type1))) {
-            coverageScore += 2;
+          if (typeEffectiveness[weakness]) {
+            if (typeEffectiveness[weakness].notVeryEffective?.includes(type1) || 
+                typeEffectiveness[weakness].noEffect?.includes(type1)) {
+              coverageScore += 2;
+            }
           }
         });
       }
@@ -409,10 +441,13 @@ export function calculateBestTypes(originalTypes, teraType) {
       // Combined score
       const combinedScore = typeScores[type1] + typeScores[type2] + coverageScore + offensiveBonus;
       
-      dualTypePairs.push({
-        types: [type1, type2],
-        score: combinedScore
-      });
+      // Only include combinations with positive scores
+      if (combinedScore > 0) {
+        dualTypePairs.push({
+          types: [type1, type2],
+          score: combinedScore
+        });
+      }
     }
   }
   
